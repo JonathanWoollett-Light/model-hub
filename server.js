@@ -2,28 +2,53 @@ if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config()
 }
 
-const express = require('express')
-const app = express()
-const bcrypt = require('bcrypt')
-const passport = require('passport')
-const flash = require('express-flash')
-const session = require('express-session')
-const methodOverride = require('method-override')
+const express = require('express') // express
 
-const initializePassport = require('./passport-config')
-initializePassport(
-  passport,
-  email => users.find(user => user.email === email),
-  id => users.find(user => user.id === id)
-)
+const bcrypt = require('bcrypt') // hashing
+const passport = require('passport') // middleware conveniance
+const flash = require('express-flash') //
+const session = require('express-session') // 
+const methodOverride = require('method-override')
+const mongo = require("mongodb")
+
+const mongoClient = mongo.MongoClient
+const app = express() // initiates express
+
+const db_username = process.argv[2]
+const db_password = process.argv[3]
+console.log(db_username,db_password)
+
+// Connects to database
+mongoClient.connect(
+  `mongodb+srv://${db_username}:${db_password}@cluster0.wwsrh.mongodb.net/local?retryWrites=true&w=majority`,
+  (err, client) => {
+    if (err) throw err;
+    
+    const db = client.db('auth');
+    app.locals.database = db;
+
+    console.log("Connected to database.");
+
+    const initializePassport = require('./passport-config')
+    initializePassport(
+      passport,
+      app.locals.database.collection("users")
+    )
+});
+
+// const SALT = "=F#!AA9Ev$Ve3m@FUenH-uz?ccYkf,";
+const SALT = 10;
+module.exports = {
+  SALT: SALT
+}
 
 const users = []
 
 app.set('view-engine', 'ejs')
 app.use(express.urlencoded({ extended: false }))
-app.use(flash())
+app.use(flash()) // Error messages
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SALT,
   resave: false,
   saveUninitialized: false
 }))
@@ -32,7 +57,7 @@ app.use(passport.session())
 app.use(methodOverride('_method'))
 
 app.get('/', checkAuthenticated, (req, res) => {
-  res.render('index.ejs', { name: req.user.name })
+  res.render('index.ejs', { email: req.user.email, data: req.user.data })
 })
 
 app.get('/login', checkNotAuthenticated, (req, res) => {
@@ -49,19 +74,16 @@ app.get('/register', checkNotAuthenticated, (req, res) => {
   res.render('register.ejs')
 })
 
-app.post('/register', checkNotAuthenticated, async (req, res) => {
-  try {
-    const hashedPassword = await bcrypt.hash(req.body.password, 10)
-    users.push({
-      id: Date.now().toString(),
-      name: req.body.name,
-      email: req.body.email,
-      password: hashedPassword
+app.post('/register', checkNotAuthenticated, (req, res) => {
+  console.log(req.body)
+  bcrypt.hash(req.body.password,SALT,(err,hash) => {
+    if (err) throw err
+    app.locals.database.collection("users")
+    .insertOne({"email":req.body.email,"hash":hash,"data":req.body.data}, (err, result) => {
+      if (err) throw res.redirect('/register')
+      res.redirect('/login')
     })
-    res.redirect('/login')
-  } catch {
-    res.redirect('/register')
-  }
+  })
 })
 
 app.delete('/logout', (req, res) => {
@@ -85,3 +107,4 @@ function checkNotAuthenticated(req, res, next) {
 }
 
 app.listen(3000)
+

@@ -1,4 +1,11 @@
-<h1>Hi <%= name %></h1>
-<form action="/logout?_method=DELETE" method="POST">
-  <button type="submit">Log Out</button>
-</form>
+<html>
+  <body>
+    <ul>
+      <li>Email: <%= email %></li>
+      <li>Data: <%= data %></li>
+    </ul>
+    <form action="/logout?_method=DELETE" method="POST">
+      <button type="submit">Log Out</button>
+    </form>
+  </body>
+</html>
