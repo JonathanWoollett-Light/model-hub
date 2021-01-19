@@ -1,0 +1,26 @@
+<html>
+  <head>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script nomodule src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
+  </head>
+  <body>
+    <h1><%= model.title %></h1>
+    <p><%= model.desc %></p>
+
+    <!-- TODO make this size change work -->
+    <model-viewer width="1000", height="1000", src="data:application/octet-stream;base64,<%= model.file.data.buffer.toString('base64') %>" alt="<%= model.title %>" auto-rotate camera-controls></model-viewer>
+
+    <form action="/models/<%= model._id %>/shareOwnership?_method=PUT" method="post">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required>
+        <button type="submit">Share ownership</button>
+    </form>
+    <form action="/models/<%= model._id %>/disown?_method=DELETE" method="post">
+        <button type="submit">Disown</button>
+    </form>
+
+    <form action="/logout?_method=DELETE" method="post">
+      <button type="submit">Log Out</button>
+    </form>
+  </body>
+</html>

@@ -1,9 +1,40 @@
 <html>
+  <head>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script nomodule src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
+  </head>
   <body>
     <ul>
       <li>Email: <%= email %></li>
       <li>Data: <%= data %></li>
     </ul>
+    
+    <div>
+      <h3>Test title</h3>
+      <p>Test desc</p>
+      <model-viewer width="200", height="200", src="among-us.glb" alt="Test model" auto-rotate camera-controls></model-viewer>
+    </div>
+
+    <h2>Offers</h2>
+    <ul>
+      <% for(let i=0;i<offers.length;i++){ %>
+        <li>
+          <%= offers[i].from %>:<%= offers[i].type %>
+          <form action="/models/<%= offers[i].model %>/<%= offers[i].type %>?_method=PUT" method="post">
+            <button type="submit">Accept</button>
+          </form></li>
+      <% } %>
+    </ul>
+
+    <h2>Models</h2>
+    <% for(let i=0;i<models.length; i++) { %>
+      <div>
+        <h3><a href="/models/<%= models[i]._id %>"><%= models[i].title %></a></h3>
+        <p><%= models[i].desc %></p>
+        <model-viewer width="200", height="200", src="data:application/octet-stream;base64,<%= models[i].file.data.buffer.toString('base64') %>" alt="<%= models[i].title %>" auto-rotate camera-controls></model-viewer>
+      </div>
+    <% } %>
+
     <form action="/logout?_method=DELETE" method="POST">
       <button type="submit">Log Out</button>
     </form>

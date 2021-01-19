@@ -1,12 +1,18 @@
 <html>
   <body>
-    <form action="/register" method="post">
+    <form action="/register" method="post" enctype="multipart/form-data">
         <label for="email">Email</label>
         <input type="email" id="email" name="email"><br><br>
+
         <label for="password">Password</label>
         <input type="password" id="password" name="password"><br><br>
+
         <label for="data">Data</label>
-        <input type="data" id="data" name="data"><br><br>
+        <input type="text" id="data" name="data"><br><br>
+
+        <!-- <label for="file">File</label>
+        <input type="file" id="file" name="file"><br><br> -->
+
         <input type="submit" value="Submit">
       </form>  
   </body>
