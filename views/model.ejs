@@ -1,49 +1,96 @@
 <html>
   <head>
+    <!-- Materialize -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- <model-viewer> -->
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script nomodule src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
   </head>
   <body>
-    <h1><%= model.title %></h1>
-    <p><%= model.desc %></p>
+    <div class="container">
+      <h1><%= model.title %></h1>
+      <p><%= model.desc %></p>
 
-    <!-- TODO Figure out how to best render versions -->
+      <!-- TODO Figure out how to best render versions -->
+      <div class="row">
+        <div class="col s6">
+          <ul class="collapsible">
+            <!-- <li class="active">
+              <div class="collapsible-header">First</div>
+              <div class="collapsible-body"><span>Lorem ipsum dolor sit amet.</span></div>
+            </li> -->
+            <% for(let i=model.versions.length-1;i>=0; i--) { %>
+              <li class="<%= i==model.versions.length-1 ? 'active': ''%>"">
+                <div class="collapsible-header">
+                  <span><%= model.versions[i].desc %></span>
+                  <!-- TODO Get the date to right align -->
+                  <span  class="secondary-content"><%= model.versions[i].date.toUTCString() %></span>
+                </div>
+                <div class="collapsible-body">
+                  <!-- TODO Make this size change work -->
+                  <span><model-viewer width="500", height="500", src="data:application/octet-stream;base64,<%= model.versions[i].file.data.buffer.toString('base64') %>" auto-rotate camera-controls></model-viewer></span>
+                </div>
+              </li>
+            <% } %>
+          </ul>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col s4">
+        
+          <form class="z-depth-1" style="padding:10px;" action="/models/<%= model._id %>/version" method="post" enctype="multipart/form-data">
+            <div class="input-field">
+              <input type="text" id="desc" name="desc" required>
+              <label for="desc">Description</label>
+            </div>
+            <div class="file-field input-field">
+              <div class="btn">
+                <span>File</span>
+                <input type="file" name="file">
+              </div>
+              <div class="file-path-wrapper">
+                <input class="file-path validate" type="text">
+              </div>
+            </div>
+            <button class="btn waves-effect waves-light" type="submit" name="action">New version
+              <i class="material-icons right">backup</i>
+            </button>
+          </form>
+        </div>
+        <div class="col s4">
+          <form class="z-depth-1" style="padding:10px;" action="/models/<%= model._id %>/shareOwnership?_method=PUT" method="post">
+            <div class="input-field">
+              <input id="email" type="email" class="validate" name="email">
+              <label for="email">Email</label>
+            </div>
+              <button class="btn waves-effect waves-light" type="submit" name="action">Share ownership
+                <i class="material-icons right">call_split</i>
+              </button>
+          </form>
+        </div>
+        <div class="col s4">
+            <form action="/models/<%= model._id %>/disown?_method=DELETE" method="post">
+              <button class="btn waves-effect waves-light " type="submit" name="action">Disown
+                <i class="material-icons right">cancel</i>
+              </button>  
+              <!-- <button type="submit">Disown</button> -->
+            </form>
+          
+        </div>
+      </div>
+    </div>
     
-    <table>
-      <tr>
-        <th>Model</th>
-        <th>Date</th>
-        <th>Description</th>
-      </tr>
-      <% for(let i=model.versions.length-1;i>=0; i--) { %>
-        <tr>
-          <!-- TODO Make this size change work -->
-          <td><model-viewer width="1000", height="1000", src="data:application/octet-stream;base64,<%= model.versions[i].file.data.buffer.toString('base64') %>" auto-rotate camera-controls></model-viewer></td>
-          <td><%= model.versions[i].date %></td>
-          <th><%= model.versions[i].desc %></th>
-        </tr>
-      <% } %>
-    </table>
-    
-    <form action="/models/<%= model._id %>/version" method="post" enctype="multipart/form-data">
-      <label for="desc">Desc</label>
-      <input type="text" id="desc" name="desc" required>
-      <label for="file">File</label>
-      <input type="file" id="file" name="file" required>
-      <button type="submit">New version</button>
-  </form>
 
-    <form action="/models/<%= model._id %>/shareOwnership?_method=PUT" method="post">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" required>
-        <button type="submit">Share ownership</button>
-    </form>
-    <form action="/models/<%= model._id %>/disown?_method=DELETE" method="post">
-        <button type="submit">Disown</button>
-    </form>
-
-    <form action="/logout?_method=DELETE" method="post">
-      <button type="submit">Log Out</button>
-    </form>
+    <!-- Materialize -->
+    <script type="text/javascript" src="js/materialize.min.js"></script>
   </body>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var elems = document.querySelectorAll('.collapsible');
+      var instances = M.Collapsible.init(elems);
+    });
+  </script>
 </html>

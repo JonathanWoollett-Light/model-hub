@@ -165,7 +165,7 @@ app.get('/models/create', checkAuthenticated, (req, res) => {
   res.render('create-model.ejs')
 })
 
-// TODO Should this be "/models" ?
+// TODO Should this be "/models"
 app.post('/models/create', checkAuthenticated, async (req, res) => {
   console.log("/models/create");
   console.log(typeof req.body.public, req.body.public);
