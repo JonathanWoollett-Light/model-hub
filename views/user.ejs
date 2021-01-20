@@ -4,22 +4,27 @@
     <script nomodule src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
   </head>
   <body>
-
-    <h2>Landing page</h2>
-
-    <form action="/register" method="get">
-      <button type="submit">Register</button>
-    </form>
-    <form action="/login" method="get">
-      <button type="submit">Log in</button>
-    </form>
-
+    <ul>
+      <li>Email: <%= email %></li>
+      <li>Data: <%= data %></li>
+    </ul>
+    
     <div>
       <h3>Test title</h3>
       <p>Test desc</p>
       <model-viewer width="200", height="200", src="among-us.glb" alt="Test model" auto-rotate camera-controls></model-viewer>
     </div>
-    
+
+    <h2>Offers</h2>
+    <ul>
+      <% for(let i=0;i<offers.length;i++){ %>
+        <li>
+          <%= offers[i].from %>:<%= offers[i].type %>
+          <form action="/models/<%= offers[i].model %>/<%= offers[i].type %>?_method=PUT" method="post">
+            <button type="submit">Accept</button>
+          </form></li>
+      <% } %>
+    </ul>
 
     <h2>Models</h2>
     <% for(let i=0;i<models.length; i++) { %>
@@ -30,6 +35,8 @@
       </div>
     <% } %>
 
-    
+    <form action="/logout?_method=DELETE" method="POST">
+      <button type="submit">Log Out</button>
+    </form>
   </body>
 </html>

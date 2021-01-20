@@ -64,28 +64,35 @@ app.use(upload())
 // Static model testing
 app.use( express.static( "static" ) );
 
-app.get('/', checkAuthenticated, (req, res) => {
+app.get('/', async (req, res) => {
   console.log("/")
   //console.log(req.user.models.length)
 
-  app.locals.database.collection("models").find({"_id":{"$in":req.user.models}}, (err,result) => {
-    if (err) throw err
-    result.toArray((err,result) => {
-      res.render('index.ejs', { email: req.user.email, data: req.user.data, models: result, offers: req.user.offers })
-    });
-      
-  })
+  let models = await app.locals.database.collection("models").find({public: true}).toArray();
+
+  res.render('index.ejs', { models: models });
 })
+
 
 // User roots
 //------------------------------------
+
+app.get('/user', checkAuthenticated, async (req, res) => {
+  console.log("/user")
+  //console.log(req.user.models.length)
+
+  let models = await app.locals.database.collection("models").find({ _id: { $in: req.user.models } }).toArray();
+
+  res.render('user.ejs', { email: req.user.email, data: req.user.data, models: models, offers: req.user.offers });
+})
+
 app.get('/login', checkNotAuthenticated, (req, res) => {
   console.log("/login")
   res.render('login.ejs')
 })
 
 app.post('/login', checkNotAuthenticated, passport.authenticate('local', {
-  successRedirect: '/',
+  successRedirect: '/user',
   failureRedirect: '/login',
   failureFlash: true
 }))
@@ -95,18 +102,22 @@ app.get('/register', checkNotAuthenticated, (req, res) => {
   res.render('register.ejs')
 })
 
-app.post('/register', checkNotAuthenticated, (req, res) => {
+app.post('/register', checkNotAuthenticated, async (req, res) => {
   console.log("/register")
   //console.log(req.body)
 
-  bcrypt.hash(req.body.password,SALT,(err,hash) => {
-    if (err) throw err
-    app.locals.database.collection("users")
-    .insertOne({email:req.body.email,hash:hash,data:req.body.data,models:[],offers:[]}, (err, result) => {
-      if (err) res.redirect('/register')
-      res.redirect('/login')
-    })
-  })
+  let hash = await bcrypt.hash(req.body.password,SALT,(err,hash)).catch((err)=>{throw err});
+
+  await app.locals.database.collection("users").insertOne({
+    email: req.body.email,
+    hash: hash,
+    data: req.body.data,
+    models: [],
+    offers: []
+  }).catch((err)=>{res.redirect('/register')})
+
+  res.redirect('/login')
+  
 })
 
 app.delete('/logout', (req, res) => {
@@ -138,17 +149,24 @@ app.get('/models/create', checkAuthenticated, (req, res) => {
   res.render('create-model.ejs')
 })
 
-app.post('/models/create', checkAuthenticated, (req, res) => {
-  console.log("/models/create")
-  // console.log(req.body)
+app.post('/models/create', checkAuthenticated, async (req, res) => {
+  console.log("/models/create");
+  console.log(typeof req.body.public, req.body.public);
   // console.log(req.files)
-  app.locals.database.collection("models").insertOne({title:req.body.title,desc:req.body.desc,file:req.files.file,owners:1}, (err,insertResult) => {
-    if (err) throw err
-    app.locals.database.collection("users").updateOne({_id:req.user._id},{$push: {models: insertResult.insertedId}}, (err,_) => {
-      if (err) throw err
-      res.redirect('/models/'+insertResult.insertedId)
-    })
-  })
+  let model = await app.locals.database.collection("models").insertOne({
+    title: req.body.title,
+    desc: req.body.desc,
+    file: req.files.file,
+    owners: 1,
+    public: req.body.public=="on" ? true : false
+  }).catch((err)=>{throw err})
+
+  await app.locals.database.collection("users").updateOne(
+    { _id: req.user._id },
+    { $push: {models: model.insertedId } }
+  ).catch((err)=>{throw err})
+
+  res.redirect('/models/' + model.insertedId)
 })
 
 app.get('/models/:id', checkAuthenticated, (req, res) => {
@@ -173,13 +191,13 @@ app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
 
   // Checks offering user has ownership of model
   let owner = await app.locals.database.collection("users").findOne({_id: req.user._id, models: model_id}).catch((err)=>{throw err})
-  console.log("1\n",owner)
+  //console.log("1\n",owner)
   if (owner != null) {
     let updateResult = await app.locals.database.collection("users").findOneAndUpdate({email:req.body.email},{$addToSet:{offers: { model: model_id, type: "own", from: req.user._id }}});
-    console.log("2\n",updateResult)
+    //console.log("2\n",updateResult)
     // Checks offered user exists
     if (updateResult.value != null) {
-      console.log("3")
+      //console.log("3")
       await app.locals.database.collection("models").updateOne({_id:model_id},{$addToSet:{awaiting: { type: "own", for: updateResult.value._id }}});
     }
   }
@@ -214,7 +232,7 @@ app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
     ),
   ]).catch((err)=> { throw err });
   
-  res.redirect("/")
+  res.redirect("/user")
 })
 
 // TODO Delete all hanging offer if model gets deleted
@@ -229,12 +247,12 @@ app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
   if (user.modifiedCount == 1) {
     // Decrease owner count
     let model = await app.locals.database.collection("models").findOneAndUpdate({_id: model_id}, { $inc: {owners: -1}}).catch((err)=>{throw err});
-    // If 0 owners, delete
-    if (model.value == 0){
+    // If owners equalled 1 before the change, it equals 0 now, therefore delete
+    if (model.value.owners == 1){
       await app.locals.database.collection("models").deleteOne(({_id: model_id})).catch((err)=>{throw err});
     }
   }
-  res.redirect("/")
+  res.redirect("/user")
 })
 
 //------------------------------------
