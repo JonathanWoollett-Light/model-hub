@@ -22,10 +22,12 @@
               <div class="collapsible-header">First</div>
               <div class="collapsible-body"><span>Lorem ipsum dolor sit amet.</span></div>
             </li> -->
+            
             <% for(let i=model.versions.length-1;i>=0; i--) { %>
               <li class="<%= i==model.versions.length-1 ? 'active': ''%>"">
                 <div class="collapsible-header">
                   <span><%= model.versions[i].desc %></span>
+                  <!-- TODO Use locality based date and time -->
                   <!-- TODO Get the date to right align -->
                   <span  class="secondary-content"><%= model.versions[i].date.toUTCString() %></span>
                 </div>
