@@ -122,7 +122,7 @@ app.post('/register', checkNotAuthenticated, async (req, res) => {
   console.log("/register")
   //console.log(req.body)
 
-  const hash = await bcrypt.hash(req.body.password,SALT,(err,hash)).catch((err)=>{throw err});
+  const hash = await bcrypt.hash(req.body.password,SALT).catch((err)=>{throw err});
 
   await app.locals.database.collection("users").insertOne({
     email: req.body.email,
