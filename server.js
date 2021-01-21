@@ -17,8 +17,6 @@ const ObjectId = mongo.ObjectId;
 const mongoClient = mongo.MongoClient
 const app = express() // initiates express
 
-
-
 const db_username = process.argv[2]
 const db_password = process.argv[3]
 console.log(db_username,db_password)
@@ -73,13 +71,20 @@ app.get('/', async (req, res) => {
   console.log("/")
   //console.log(req.user.models.length)
 
-  let models = await app.locals.database.collection("models").find({public: true}).toArray();
+  let models = await app.locals.database.collection("models").find(
+    {public: true},
+    { 
+      _id: true,
+      title: true,
+      desc: true,
+      poster: true
+    }
+  ).toArray();
 
   const strippedModels = models.map(model => { return {
     _id: model._id,
     title: model.title,
     desc: model.desc,
-    date: model.versions[model.versions.length-1].date,
     poster: model.poster
   }});
 
@@ -99,13 +104,20 @@ app.get('/user', checkAuthenticated, async (req, res) => {
   console.log("/user")
   //console.log(req.user.models.length)
 
-  const models = await app.locals.database.collection("models").find({ _id: { $in: req.user.models } }).toArray();
+  const models = await app.locals.database.collection("models").find(
+    { _id: { $in: req.user.models } }, 
+    { 
+      _id: true,
+      title: true,
+      desc: true,
+      poster: true
+    }
+  ).toArray();
   
   const strippedModels = models.map(model => { return {
     _id: model._id,
     title: model.title,
     desc: model.desc,
-    date: model.versions[model.versions.length-1].date,
     poster: model.poster
   }});
 

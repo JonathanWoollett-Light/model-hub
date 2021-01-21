@@ -64,23 +64,6 @@
               </div>
             </div>
           <% } %>
-          <!-- Repeats first 9 times -->
-          <% for(let i=0;i<9; i++) { %>
-            <div class="col m2 l3">
-              <div class="card small">
-                <div class="card-image">
-                  <img src="data:image/jpeg;base64,<%= models[0].poster.data.buffer.toString('base64') %>">
-                </div>
-                <div class="card-content">
-                  <span class="card-title"><%= models[0].title %></span>
-                  <p><%= models[0].desc %></p>
-                </div>
-                <div class="card-action">
-                  <a href="/models/<%= models[0]._id %>">More</a>
-                </div>
-              </div>
-            </div>
-          <% } %>
         </div>
       </div>
 
