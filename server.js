@@ -75,10 +75,15 @@ app.get('/', async (req, res) => {
     title: model.title,
     desc: model.desc,
     date: model.versions[model.versions.length-1].date,
-    file: model.versions[model.versions.length-1].file
+    poster: model.poster
   }});
 
-  res.render('index.ejs', { models: strippedModels });
+  const email = req.isAuthenticated() ? req.user.email : null;
+
+  res.render(
+    'index.ejs', 
+    { email: email, models: strippedModels }
+  );
 })
 
 
@@ -96,15 +101,10 @@ app.get('/user', checkAuthenticated, async (req, res) => {
     title: model.title,
     desc: model.desc,
     date: model.versions[model.versions.length-1].date,
-    file: model.versions[model.versions.length-1].file
+    poster: model.poster
   }});
 
   res.render('user.ejs', { email: req.user.email, data: req.user.data, models: strippedModels, offers: req.user.offers });
-})
-
-app.get('/login', checkNotAuthenticated, (req, res) => {
-  console.log("/login")
-  res.render('login.ejs')
 })
 
 app.post('/login', checkNotAuthenticated, passport.authenticate('local', {
@@ -113,11 +113,7 @@ app.post('/login', checkNotAuthenticated, passport.authenticate('local', {
   failureFlash: true
 }))
 
-app.get('/register', checkNotAuthenticated, (req, res) => {
-  console.log("/register")
-  res.render('register.ejs')
-})
-
+// TODO if user already register, attempt login
 app.post('/register', checkNotAuthenticated, async (req, res) => {
   console.log("/register")
   //console.log(req.body)
@@ -127,19 +123,26 @@ app.post('/register', checkNotAuthenticated, async (req, res) => {
   await app.locals.database.collection("users").insertOne({
     email: req.body.email,
     hash: hash,
-    data: req.body.data,
     models: [],
     offers: []
-  }).catch((err)=>{res.redirect('/register')})
+  }).catch((err)=>{
+     // Presumes error is result of email not being unique, thus checks logging in
+     // TODO This trigger a scary error and uses code duplication, fix that
+    res.redirect(307,'/login')
+  })
+  res.redirect(307,'/login')
+})
 
-  res.redirect('/login')
-  
+app.get('/logout', (req, res) => {
+  console.log("/logout")
+  req.logOut()
+  res.redirect('/')
 })
 
 app.delete('/logout', (req, res) => {
   console.log("/logout")
   req.logOut()
-  res.redirect('/login')
+  res.redirect('/')
 })
 
 function checkAuthenticated(req, res, next) {
@@ -152,7 +155,7 @@ function checkAuthenticated(req, res, next) {
 
 function checkNotAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {
-    return res.redirect('/')
+    return res.redirect('/user')
   }
   next() // TODO Should this be a `return`?
 }
@@ -173,7 +176,8 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
   const model = await app.locals.database.collection("models").insertOne({
     title: req.body.title,
     desc: req.body.desc,
-    versions: [{file: req.files.file, date: new Date(), desc: "Initial" }],
+    poster: req.files.poster,
+    versions: [{file: req.files.model, date: new Date(), desc: "Initial" }],
     owners: 1,
     public: req.body.public=="on" ? true : false
   }).catch((err)=>{throw err})
@@ -186,15 +190,44 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
   res.redirect('/models/' + model.insertedId)
 })
 
-app.get('/models/:id', checkAuthenticated, async (req, res) => {
+// TODO Make this nicer
+app.get('/models/:id', async (req, res) => {
   console.log("/models/:id")
 
-  if(req.user.models.some(val => val.equals(req.params.id))) {
-    const model = await app.locals.database.collection("models").findOne({_id:ObjectId(req.params.id)});
-    res.render("model.ejs",{ model: model })
-  } else {
+  const model = await app.locals.database.collection("models").findOne({ _id: ObjectId(req.params.id) });
+  if (model==null) res.status(403)
+  else if (req.isAuthenticated()) {
+    const owns = req.user.models.some(val => val.equals(req.params.id));
+    if (model.public) {
+      res.render("model.ejs",{ email: req.user.email, owner: owns, model: model })
+    }
+    else if(owns) {
+      res.render("model.ejs",{ email: req.user.email, owner: true, model: model })
+    }
+  }
+  else if(model.public) {
+    res.render("model.ejs",{ email: null, owner: false, model: model })
+  }
+  else {
     res.status(403)
   }
+})
+
+app.put('/models/:id', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id")
+  // console.log(req.body);
+  // console.log(req.files);
+
+  if (req.user.models.some(val => val.equals(req.params.id))) {
+    let update = {};
+    if (req.body.title!='') update.title = req.body.title;
+    if (req.body.desc!='') update.desc = req.body.desc;
+    if (req.files!=null) update.poster = req.files.poster;
+    console.log(update)
+    await app.locals.database.collection("models").updateOne({ _id: ObjectId(req.params.id) },{ $set: update });
+  }
+  
+  res.redirect("/models/" + req.params.id);
 })
 
 app.post('/models/:id/version', checkAuthenticated, async (req, res) => {

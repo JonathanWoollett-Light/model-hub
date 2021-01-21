@@ -1,42 +1,78 @@
 <html>
   <head>
+    <!-- Materialize -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script nomodule src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
   </head>
   <body>
-    <ul>
-      <li>Email: <%= email %></li>
-      <li>Data: <%= data %></li>
-    </ul>
-    
-    <div>
-      <h3>Test title</h3>
-      <p>Test desc</p>
-      <model-viewer width="200", height="200", src="among-us.glb" alt="Test model" auto-rotate camera-controls></model-viewer>
-    </div>
-
-    <h2>Offers</h2>
-    <ul>
-      <% for(let i=0;i<offers.length;i++){ %>
-        <li>
-          <%= offers[i].from %>:<%= offers[i].type %>
-          <form action="/models/<%= offers[i].model %>/<%= offers[i].type %>?_method=PUT" method="post">
-            <button type="submit">Accept</button>
-          </form></li>
-      <% } %>
-    </ul>
-
-    <h2>Models</h2>
-    <% for(let i=0;i<models.length; i++) { %>
-      <div>
-        <h3><a href="/models/<%= models[i]._id %>"><%= models[i].title %></a></h3>
-        <p><%= models[i].desc %></p>
-        <model-viewer width="200", height="200", src="data:application/octet-stream;base64,<%= models[i].file.data.buffer.toString('base64') %>" alt="<%= models[i].title %>" auto-rotate camera-controls></model-viewer>
+    <nav>
+      <div class="nav-wrapper">
+        <a href="/" class="brand-logo">model-hub</a>
+        <!-- TODO A better way to display user email? -->
+        <a href="/user" class="brand-logo center"><%= email %></a> 
+        <ul id="nav-mobile" class="right hide-on-med-and-down">
+          <li class="active"><a href="/user">Home</a></li>
+          <li><a href="/logout">Logout</a></li>
+        </ul>
       </div>
-    <% } %>
-
-    <form action="/logout?_method=DELETE" method="POST">
-      <button type="submit">Log Out</button>
-    </form>
+    </nav>
+    <div class="container">
+      <% if(offers.length > 0) { %>
+        <div class="row">
+          <h4 class="center-align">Offers</h4>
+          <ul>
+            <% for(let i=0;i<offers.length;i++){ %>
+              <li>
+                <%= offers[i].from %>:<%= offers[i].type %>
+                <form action="/models/<%= offers[i].model %>/<%= offers[i].type %>?_method=PUT" method="post">
+                  <button type="submit">Accept</button>
+                </form></li>
+            <% } %>
+          </ul>
+        </div>
+      <% } %>
+      
+  
+      <h4 class="center-align">Models</h4>
+      <div class="row">
+        <% for(let i=0;i<models.length; i++) { %>
+          <div class="col s12 m6 l4">
+            <div class="card large">
+              <div class="card-image">
+                <img src="data:image/jpeg;base64,<%= models[i].poster.data.buffer.toString('base64') %>">
+              </div>
+              <div class="card-content">
+                <span class="card-title"><%= models[i].title %></span>
+                <p><%= models[i].desc %></p>
+              </div>
+              <div class="card-action">
+                <a href="/models/<%= models[i]._id %>">More</a>
+              </div>
+            </div>
+          </div>
+        <% } %>
+        <!-- Repeats first 3 times -->
+        <% for(let i=0;i<3; i++) { %>
+          <div class="col s12 m6 l4">
+            <div class="card large">
+              <div class="card-image">
+                <img src="data:image/jpeg;base64,<%= models[0].poster.data.buffer.toString('base64') %>">
+              </div>
+              <div class="card-content">
+                <span class="card-title"><%= models[0].title %></span>
+                <p><%= models[0].desc %></p>
+              </div>
+              <div class="card-action">
+                <a href="/models/<%= models[0]._id %>">More</a>
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
   </body>
 </html>

@@ -1,35 +1,91 @@
 <html>
   <head>
+    <!-- Materialize -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script nomodule src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
   </head>
   <body>
-
-    <h2>Landing page</h2>
-
-    <form action="/register" method="get">
-      <button type="submit">Register</button>
-    </form>
-    <form action="/login" method="get">
-      <button type="submit">Log in</button>
-    </form>
-
-    <div>
-      <h3>Test title</h3>
-      <p>Test desc</p>
-      <model-viewer width="200", height="200", src="among-us.glb" alt="Test model" auto-rotate camera-controls></model-viewer>
-    </div>
-    
-
-    <h2>Models</h2>
-    <% for(let i=0;i<models.length; i++) { %>
-      <div>
-        <h3><a href="/models/<%= models[i]._id %>"><%= models[i].title %></a></h3>
-        <p><%= models[i].desc %></p>
-        <model-viewer width="200", height="200", src="data:application/octet-stream;base64,<%= models[i].file.data.buffer.toString('base64') %>" alt="<%= models[i].title %>" auto-rotate camera-controls></model-viewer>
+    <nav>
+      <div class="nav-wrapper">
+        <a href="/" class="brand-logo">model-hub</a>
+        <% if(email!=null) { %>
+          <a href="/user" class="brand-logo center"><%= email %></a> 
+          <ul id="nav-mobile" class="right hide-on-med-and-down">
+              <li><a href="/user">Home</a></li>
+              <li><a href="/logout">Logout</a></li>
+          </ul>
+        <% } %>
       </div>
-    <% } %>
+    </nav>
+    <div class="container ">
+      <h2 class="center-align">Landing page</h2>
 
-    
+      <% if(email==null) { %>
+        <div class="row">
+          <div id="register" class="col s6 offset-s3 z-depth-1">
+            <form action="/register" method="post" class="center-align">
+              <div class="input-field">
+                <input type="email" id="email" name="email">
+                <label for="email">Email</label>
+              </div>
+              <div class="input-field">
+                <input type="password" id="password" name="password">
+                <label for="password">Password</label>
+              </div>
+              <button class="btn waves-effect waves-light" type="submit" name="action">Register/Login
+                <i class="material-icons right  ">lock_open</i>
+              </button>
+            </form>
+          </div>
+        </div>
+      <% } %>
+
+      <div class="row">
+  
+        <h2 class="center-align">Models</h2>
+        <div class="row">
+          <% for(let i=0;i<models.length; i++) { %>
+            <div class="col m2 l3">
+              <div class="card small">
+                <div class="card-image">
+                  <img src="data:image/jpeg;base64,<%= models[i].poster.data.buffer.toString('base64') %>">
+                </div>
+                <div class="card-content">
+                  <span class="card-title"><%= models[i].title %></span>
+                  <p><%= models[i].desc %></p>
+                </div>
+                <div class="card-action">
+                  <a href="/models/<%= models[i]._id %>">More</a>
+                </div>
+              </div>
+            </div>
+          <% } %>
+          <!-- Repeats first 9 times -->
+          <% for(let i=0;i<9; i++) { %>
+            <div class="col m2 l3">
+              <div class="card small">
+                <div class="card-image">
+                  <img src="data:image/jpeg;base64,<%= models[0].poster.data.buffer.toString('base64') %>">
+                </div>
+                <div class="card-content">
+                  <span class="card-title"><%= models[0].title %></span>
+                  <p><%= models[0].desc %></p>
+                </div>
+                <div class="card-action">
+                  <a href="/models/<%= models[0]._id %>">More</a>
+                </div>
+              </div>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      
+
+    </div>
   </body>
 </html>
