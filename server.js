@@ -48,6 +48,8 @@ mongoClient.connect(
 
     // Seeds database
     seed(db);
+
+    app.listen(3000);
 });
 
 app.set('view-engine', 'ejs')
