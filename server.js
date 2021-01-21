@@ -109,7 +109,7 @@ app.get('/user', checkAuthenticated, async (req, res) => {
 
 app.post('/login', checkNotAuthenticated, passport.authenticate('local', {
   successRedirect: '/user',
-  failureRedirect: '/login',
+  failureRedirect: '/',
   failureFlash: true
 }))
 
@@ -128,7 +128,11 @@ app.post('/register', checkNotAuthenticated, async (req, res) => {
   }).catch((err)=>{
      // Presumes error is result of email not being unique, thus checks logging in
      // TODO This trigger a scary error and uses code duplication, fix that
-    res.redirect(307,'/login')
+    passport.authenticate('local', {
+      successRedirect: '/user',
+      failureRedirect: '/',
+      failureFlash: true
+    });
   })
   res.redirect(307,'/login')
 })
