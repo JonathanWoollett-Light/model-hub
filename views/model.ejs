@@ -113,18 +113,36 @@
               </form>
             </div>
             <div class="row">
-              <form action="/models/<%= model._id %>/disown?_method=DELETE" method="post">
+              <!-- <form action="/models/<%= model._id %>/disown?_method=DELETE" method="post">
                 <button class="btn waves-effect waves-light " type="submit" name="action">Disown
                   <i class="material-icons right">cancel</i>
-                </button>  
-                <!-- <button type="submit">Disown</button> -->
-              </form>
+                </button>
+              </form> -->
+              <a class="waves-effect waves-light btn modal-trigger" href="#disown-modal">Disown<i class="material-icons right">cancel</i></a>
             </div>
           </div>
         <% } %>
       </div>
     </div>
     
+    <div id="disown-modal" class="modal">
+      <div class="modal-content">
+        <h4>How disowning works</h4>
+        <p>Disowning != Deleting. <br> By disowning you decrease the number of owners of this model, it only deletes the model if the number of owners remaining is zero. The number of owners is set to 1 on creation and only increases when shared ownership is offered a to another user and accepted. By disowning you are severing your connection to this model, you will loose ownership and can only regain it if another owners deems to share ownership with you again.</p>
+      </div>
+      <div class="modal-footer">
+        <span>
+          
+        </span>
+        <!-- <a href="#!" class="modal-close waves-effect waves-green btn-flat">Okay, go back</a> -->
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Okay, nevermind</a> 
+        <form action="/models/<%= model._id %>/disown?_method=DELETE" method="post">
+          <button class="btn waves-effect waves-light red" type="submit" name="action">Disown
+            <i class="material-icons right">cancel</i>
+          </button>
+        </form>
+      </div>
+    </div>
 
     <!-- Materialize -->
     <script type="text/javascript" src="js/materialize.min.js"></script>
@@ -133,6 +151,10 @@
     document.addEventListener('DOMContentLoaded', function() {
       var elems = document.querySelectorAll('.collapsible');
       var instances = M.Collapsible.init(elems);
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+      var elems = document.querySelectorAll('.modal');
+      var instances = M.Modal.init(elems);
     });
   </script>
 </html>
