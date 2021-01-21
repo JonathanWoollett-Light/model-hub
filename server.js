@@ -11,6 +11,7 @@ const session = require('express-session') // Auth
 const methodOverride = require('method-override') // Auth
 const upload = require("express-fileupload"); // File upload
 const mongo = require("mongodb"); // Database
+const fs = require("fs");
 
 const ObjectId = mongo.ObjectId;
 
@@ -69,7 +70,7 @@ app.use(upload())
 // Static model testing
 app.use( express.static( "static" ) );
 
-app.listen(3000)
+
 
 app.get('/', async (req, res) => {
   console.log("/")
@@ -258,6 +259,37 @@ app.get('/models/:id', async (req, res) => {
   }
 })
 
+app.get('/models/:id/:version/download', async (req, res) => {
+  console.log("/models/:id/:version/download");
+  const model = await app.locals.database.collection("models").findOne(
+    { _id: ObjectId(req.params.id) },
+    { 
+      _id: false,
+      title: false,
+      poster: false,
+      versions: { $slice: req.params.version },
+      owners: false,
+      public: true
+    }
+  );
+  console.log(model);
+
+  if (model==null) res.status(403)
+  else if(model.public) {
+    // ...
+    res.download(model.versions[0].file,model.versions[0].file.name);
+  }
+  else if (req.isAuthenticated()) {
+    if(req.user.models.some(val => val.equals(req.params.id))) {
+      // ...
+      res.download(model.versions[0].file,model.versions[0].file.name);
+    }
+  }
+  else {
+    res.status(403)
+  }
+})
+
 app.put('/models/:id', checkAuthenticated, async (req, res) => {
   console.log("/models/:id")
   // console.log(req.body);
@@ -395,4 +427,5 @@ app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
 })
 
 //------------------------------------
+
 
