@@ -151,11 +151,11 @@
     <script type="text/javascript" src="js/materialize.min.js"></script>
   </body>
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', () => {
       var elems = document.querySelectorAll('.collapsible');
       var instances = M.Collapsible.init(elems);
     });
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', () => {
       var elems = document.querySelectorAll('.modal');
       var instances = M.Modal.init(elems);
     });

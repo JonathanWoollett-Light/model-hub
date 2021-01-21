@@ -8,43 +8,50 @@ async function seed(db) {
             email: "a@a",
             hash: await bcrypt.hash("a",SALT),
             models: [],
-            offers: []
+            offers: [],
+            memory: 0
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "b@b",
             hash: await bcrypt.hash("b",SALT),
             models: [],
-            offers: []
+            offers: [],
+            memory: 0
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "c@c",
             hash: await bcrypt.hash("c",SALT),
             models: [],
-            offers: []
+            offers: [],
+            memory: 0
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "d@d",
             hash: await bcrypt.hash("d",SALT),
             models: [],
-            offers: []
+            offers: [],
+            memory: 0
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "aa@a",
             hash: await bcrypt.hash("aa",SALT),
             models: [],
-            offers: []
+            offers: [],
+            memory: 0
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "ab@a",
             hash: await bcrypt.hash("ab",SALT),
             models: [],
-            offers: []
+            offers: [],
+            memory: 0
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "ac@a",
             hash: await bcrypt.hash("ac",SALT),
             models: [],
-            offers: []
+            offers: [],
+            memory: 0
         }).catch((err)=>{})
     ])
 }

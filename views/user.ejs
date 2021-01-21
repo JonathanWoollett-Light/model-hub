@@ -21,6 +21,14 @@
       </div>
     </nav>
     <div class="container">
+      <div class="row">
+        <h5 class="center-align">Memory used</h5>
+          <div class="progress col s6 offset-s3" style="height: 10px;">
+            <div class="determinate" style="width: <%= memory / (100*1024*1024) * 100 %>%;"></div>
+          </div><br>
+          <p class="center-align"><%= Math.ceil(memory / (1024*1024)) %>mb / <%= 100 %>mb</p>
+        </div>
+      </div>
       <% if(offers.length > 0) { %>
         <div class="row">
           <h4 class="center-align">Offers</h4>

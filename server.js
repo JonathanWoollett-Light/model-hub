@@ -47,7 +47,7 @@ mongoClient.connect(
     )
 
     // Seeds database
-    seed(db)
+    seed(db);
 });
 
 app.set('view-engine', 'ejs')
@@ -66,6 +66,8 @@ app.use(upload())
 
 // Static model testing
 app.use( express.static( "static" ) );
+
+app.listen(3000)
 
 app.get('/', async (req, res) => {
   console.log("/")
@@ -121,7 +123,13 @@ app.get('/user', checkAuthenticated, async (req, res) => {
     poster: model.poster
   }});
 
-  res.render('user.ejs', { email: req.user.email, data: req.user.data, models: strippedModels, offers: req.user.offers });
+  res.render('user.ejs', { 
+    email: req.user.email,
+    data: req.user.data,
+    models: strippedModels,
+    offers: req.user.offers,
+    memory: req.user.memory
+  });
 })
 
 app.post('/login', checkNotAuthenticated, passport.authenticate('local', {
@@ -141,7 +149,8 @@ app.post('/register', checkNotAuthenticated, async (req, res) => {
     email: req.body.email,
     hash: hash,
     models: [],
-    offers: []
+    offers: [],
+    memory: 0
   }).catch((err)=>{
      // Presumes error is result of email not being unique, thus checks logging in
      // TODO This trigger a scary error and uses code duplication, fix that
@@ -170,8 +179,8 @@ function checkAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {
     return next()
   }
-  res.status(401)
-  //res.redirect('/login')
+  //res.status(401)
+  res.redirect('/login')
 }
 
 function checkNotAuthenticated(req, res, next) {
@@ -192,8 +201,9 @@ app.get('/models/create', checkAuthenticated, (req, res) => {
 // TODO Should this be "/models"
 app.post('/models/create', checkAuthenticated, async (req, res) => {
   console.log("/models/create");
-  console.log(typeof req.body.public, req.body.public);
+  // console.log(typeof req.body.public, req.body.public);
 
+  const size = req.files.poster.size + req.files.model.size;
   if (req.files.poster.size < 30*1024) {
     // console.log(req.files)
     const model = await app.locals.database.collection("models").insertOne({
@@ -207,8 +217,14 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
 
     await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
-      { $push: {models: model.insertedId } }
-    ).catch((err)=>{throw err})
+      { 
+        $push: {models: model.insertedId },
+        $inc: { memory: size }
+      }
+    ).catch((err)=>{
+      // Presumes error is result of memory being more than max
+      res.redirect('/models/create')
+    });
 
     res.redirect('/models/' + model.insertedId)
   } else {
@@ -268,13 +284,19 @@ app.post('/models/:id/version', checkAuthenticated, async (req, res) => {
   }).catch((err)=>{throw err})
 
   if (owner != null) {
+    await app.locals.database.collection("users").updateOne(
+      { _id: req.user._id },
+      { $inc: { memory: req.files.file.size } }
+    ).catch((err) => {
+      res.redirect("/models/" + req.params.id);
+    });
     await app.locals.database.collection("models").updateOne(
       { _id: model_id},
       { $push: { versions: { file: req.files.file, date: new Date(), desc: req.body.desc }}}
     );
-    res.redirect("/models/" + req.params.id)
+    res.redirect("/models/" + req.params.id);
   }
-  res.status(403)
+  res.status(403);
 })
 
 
@@ -371,6 +393,4 @@ app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
 })
 
 //------------------------------------
-
-app.listen(3000)
 
