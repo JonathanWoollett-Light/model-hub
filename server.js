@@ -193,22 +193,28 @@ app.get('/models/create', checkAuthenticated, (req, res) => {
 app.post('/models/create', checkAuthenticated, async (req, res) => {
   console.log("/models/create");
   console.log(typeof req.body.public, req.body.public);
-  // console.log(req.files)
-  const model = await app.locals.database.collection("models").insertOne({
-    title: req.body.title,
-    desc: req.body.desc,
-    poster: req.files.poster,
-    versions: [{file: req.files.model, date: new Date(), desc: "Initial" }],
-    owners: 1,
-    public: req.body.public=="on" ? true : false
-  }).catch((err)=>{throw err})
 
-  await app.locals.database.collection("users").updateOne(
-    { _id: req.user._id },
-    { $push: {models: model.insertedId } }
-  ).catch((err)=>{throw err})
+  if (req.files.poster.size < 30*1024) {
+    // console.log(req.files)
+    const model = await app.locals.database.collection("models").insertOne({
+      title: req.body.title,
+      desc: req.body.desc,
+      poster: req.files.poster,
+      versions: [{file: req.files.model, date: new Date(), desc: "Initial" }],
+      owners: 1,
+      public: req.body.public=="on" ? true : false
+    }).catch((err)=>{throw err})
 
-  res.redirect('/models/' + model.insertedId)
+    await app.locals.database.collection("users").updateOne(
+      { _id: req.user._id },
+      { $push: {models: model.insertedId } }
+    ).catch((err)=>{throw err})
+
+    res.redirect('/models/' + model.insertedId)
+  } else {
+    res.redirect('/models/create')
+  }
+  
 })
 
 // TODO Make this nicer
