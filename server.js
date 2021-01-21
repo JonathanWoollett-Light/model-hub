@@ -6,24 +6,34 @@ const express = require('express') // express
 
 const bcrypt = require('bcrypt') // hashing
 const passport = require('passport') // middleware convenience
-const flash = require('express-flash') //
-const session = require('express-session') // 
-const methodOverride = require('method-override')
-const upload = require("express-fileupload");
-const mongo = require("mongodb");
+const flash = require('express-flash') // Error messages
+const session = require('express-session') // Auth
+const methodOverride = require('method-override') // Auth
+const upload = require("express-fileupload"); // File upload
+const mongo = require("mongodb"); // Database
 
 const ObjectId = mongo.ObjectId;
 
 const mongoClient = mongo.MongoClient
 const app = express() // initiates express
 
+
+
 const db_username = process.argv[2]
 const db_password = process.argv[3]
 console.log(db_username,db_password)
 
+const SALT = 10;
+module.exports = {
+  SALT: SALT
+}
+
+const seed = require("./seed");
+
 // Connects to database
 mongoClient.connect(
   `mongodb+srv://${db_username}:${db_password}@cluster0.wwsrh.mongodb.net/local?retryWrites=true&w=majority`,
+  { useUnifiedTopology: true },
   (err, client) => {
     if (err) throw err;
     
@@ -37,13 +47,12 @@ mongoClient.connect(
       passport,
       app.locals.database.collection("users")
     )
+
+    // Seeds database
+    seed(db).catch((err)=>{});
 });
 
-// const SALT = "=F#!AA9Ev$Ve3m@FUenH-uz?ccYkf,";
-const SALT = 10;
-module.exports = {
-  SALT: SALT
-}
+
 
 const users = []
 
