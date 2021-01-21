@@ -49,12 +49,8 @@ mongoClient.connect(
     )
 
     // Seeds database
-    seed(db).catch((err)=>{});
+    seed(db)
 });
-
-
-
-const users = []
 
 app.set('view-engine', 'ejs')
 app.use(express.urlencoded({ extended: false }))

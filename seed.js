@@ -6,46 +6,46 @@ async function seed(db) {
     await Promise.all([
         db.collection("users").insertOne({
             email: "a@a",
-            hash: bcrypt.hash("a",SALT),
+            hash: await bcrypt.hash("a",SALT),
             models: [],
             offers: []
-        }),
+        }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "b@b",
-            hash: bcrypt.hash("b",SALT),
+            hash: await bcrypt.hash("b",SALT),
             models: [],
             offers: []
-        }),
+        }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "c@c",
-            hash: bcrypt.hash("c",SALT),
+            hash: await bcrypt.hash("c",SALT),
             models: [],
             offers: []
-        }),
+        }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "d@d",
-            hash: bcrypt.hash("d",SALT),
+            hash: await bcrypt.hash("d",SALT),
             models: [],
             offers: []
-        }),
+        }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "aa@a",
-            hash: bcrypt.hash("aa",SALT),
+            hash: await bcrypt.hash("aa",SALT),
             models: [],
             offers: []
-        }),
+        }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "ab@a",
-            hash: bcrypt.hash("ab",SALT),
+            hash: await bcrypt.hash("ab",SALT),
             models: [],
             offers: []
-        }),
+        }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "ac@a",
-            hash: bcrypt.hash("ac",SALT),
+            hash: await bcrypt.hash("ac",SALT),
             models: [],
             offers: []
-        })
+        }).catch((err)=>{})
     ])
 }
 
