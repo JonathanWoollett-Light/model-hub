@@ -108,6 +108,7 @@ app.get('/user', checkAuthenticated, async (req, res) => {
   console.log("/user")
   //console.log(req.user.models.length)
 
+  // TODO Use `promise.all` here
   const models = await app.locals.database.collection("models").find(
     { _id: { $in: req.user.models } }, 
     { 
@@ -125,10 +126,28 @@ app.get('/user', checkAuthenticated, async (req, res) => {
     poster: model.poster
   }});
 
+  const views = await app.locals.database.collection("models").find(
+    { _id: { $in: req.user.views } }, 
+    { 
+      _id: true,
+      title: true,
+      desc: true,
+      poster: true
+    }
+  ).toArray();
+  
+  const strippedViews = views.map(view => { return {
+    _id: view._id,
+    title: view.title,
+    desc: view.desc,
+    poster: view.poster
+  }});
+
   res.render('user.ejs', { 
     email: req.user.email,
     data: req.user.data,
     models: strippedModels,
+    views: strippedViews,
     offers: req.user.offers,
     memory: req.user.memory
   });
@@ -238,16 +257,21 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
 // TODO Make this nicer
 app.get('/models/:id', async (req, res) => {
   console.log("/models/:id")
-
+  
   const model = await app.locals.database.collection("models").findOne({ _id: ObjectId(req.params.id) });
   if (model==null) res.status(403)
   else if (req.isAuthenticated()) {
     const owns = req.user.models.some(val => val.equals(req.params.id));
+    const views = req.user.views.some(val => val.equals(req.params.id));
+
+    console.log(owns);
+    console.log(views);
+
     if (model.public) {
       res.render("model.ejs",{ email: req.user.email, owner: owns, model: model })
     }
-    else if(owns) {
-      res.render("model.ejs",{ email: req.user.email, owner: true, model: model })
+    else if(owns || views) {
+      res.render("model.ejs",{ email: req.user.email, owner: owns, model: model })
     }
   }
   else if(model.public) {
@@ -335,6 +359,38 @@ app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
   res.redirect("/models/" + req.params.id)
 })
 
+app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/share");
+  const model_id = ObjectId(req.params.id);
+  //const user_id = ObjectId(req.body.id)
+
+  // Checks offering user has ownership of model
+  const owner = await app.locals.database.collection("users").findOne({
+    _id: req.user._id,
+    models: model_id
+  }).catch((err)=>{throw err})
+
+  //console.log("1\n",owner)
+  if (owner != null) {
+    const updateResult = await app.locals.database.collection("users").findOneAndUpdate(
+      { email: req.body.email},
+      { $addToSet: { offers: { model: model_id, type: "view", from: req.user._id }}}
+    );
+
+    //console.log("2\n",updateResult)
+    // Checks offered user exists
+    if (updateResult.value != null) {
+      //console.log("3")
+      await app.locals.database.collection("models").updateOne(
+        { _id: model_id},
+        { $addToSet: { awaiting: { type: "view", for: updateResult.value._id }}}
+      );
+    }
+  }
+  console.log("4")
+  res.redirect("/models/" + req.params.id)
+})
+
 app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/own");
   const model_id = ObjectId(req.params.id);
@@ -366,6 +422,36 @@ app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
   
   res.redirect("/user")
 })
+
+app.put('/models/:id/view', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/view");
+  const model_id = ObjectId(req.params.id);
+
+  // Checks model exists and has ownership offer for user
+  const model = await app.locals.database.collection("models").findOne({
+    _id: model_id,
+    awaiting: { $elemMatch: { type: "view", for: req.user._id }}
+  }).catch((err) => {throw err});
+
+  if (model==null) res.status(403);
+
+  await Promise.all([
+    app.locals.database.collection("models").updateOne(
+      {_id: model_id},
+      { $pull: { awaiting: { type: "view", for: req.user._id} } }
+    ),
+    app.locals.database.collection("users").updateOne(
+      {_id: req.user._id},
+      {
+        $push: { views: model_id },
+        $pull: { offers: { model: model_id }}
+      }
+    ),
+  ]).catch((err)=> { throw err });
+  
+  res.redirect("/user")
+})
+
 
 // TODO Delete all hanging offer if model gets deleted
 app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {

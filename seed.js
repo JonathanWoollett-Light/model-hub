@@ -8,6 +8,7 @@ async function seed(db) {
             email: "a@a",
             hash: await bcrypt.hash("a",SALT),
             models: [],
+            views: [],
             offers: [],
             memory: 0
         }).catch((err)=>{}),
@@ -15,6 +16,7 @@ async function seed(db) {
             email: "b@b",
             hash: await bcrypt.hash("b",SALT),
             models: [],
+            views: [],
             offers: [],
             memory: 0
         }).catch((err)=>{}),
@@ -22,6 +24,7 @@ async function seed(db) {
             email: "c@c",
             hash: await bcrypt.hash("c",SALT),
             models: [],
+            views: [],
             offers: [],
             memory: 0
         }).catch((err)=>{}),
@@ -29,6 +32,7 @@ async function seed(db) {
             email: "d@d",
             hash: await bcrypt.hash("d",SALT),
             models: [],
+            views: [],
             offers: [],
             memory: 0
         }).catch((err)=>{}),
@@ -36,6 +40,7 @@ async function seed(db) {
             email: "aa@a",
             hash: await bcrypt.hash("aa",SALT),
             models: [],
+            views: [],
             offers: [],
             memory: 0
         }).catch((err)=>{}),
@@ -43,6 +48,7 @@ async function seed(db) {
             email: "ab@a",
             hash: await bcrypt.hash("ab",SALT),
             models: [],
+            views: [],
             offers: [],
             memory: 0
         }).catch((err)=>{}),
@@ -50,6 +56,7 @@ async function seed(db) {
             email: "ac@a",
             hash: await bcrypt.hash("ac",SALT),
             models: [],
+            views: [],
             offers: [],
             memory: 0
         }).catch((err)=>{})
