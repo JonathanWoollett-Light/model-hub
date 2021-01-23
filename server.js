@@ -69,7 +69,7 @@ app.use(upload())
 // Static model testing
 app.use( express.static( "static" ) );
 
-app.listen(3000)
+
 
 app.get('/', async (req, res) => {
   console.log("/")
@@ -395,4 +395,5 @@ app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
 })
 
 //------------------------------------
+
 

@@ -45,6 +45,8 @@
                   <!-- TODO Use locality based date and time -->
                   <!-- TODO Get the date to right align -->
                   <span  class="secondary-content"><%= model.versions[i].date.toUTCString() %></span>
+                  <!-- TODO Make clicking download not toggle card -->
+                  <a href="data:application/octet-stream;base64,<%= model.versions[i].file.data.buffer.toString('base64') %>" download="<%= model.versions[i].file.name %>"><i class="material-icons">file_download</i></a>
                 </div>
                 <div class="collapsible-body">
                   <!-- TODO Make this size change work -->
@@ -113,11 +115,6 @@
               </form>
             </div>
             <div class="row">
-              <!-- <form action="/models/<%= model._id %>/disown?_method=DELETE" method="post">
-                <button class="btn waves-effect waves-light " type="submit" name="action">Disown
-                  <i class="material-icons right">cancel</i>
-                </button>
-              </form> -->
               <a class="waves-effect waves-light btn modal-trigger" href="#disown-modal">Disown<i class="material-icons right">cancel</i></a>
             </div>
           </div>
