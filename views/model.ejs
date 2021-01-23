@@ -45,7 +45,8 @@
                   <!-- TODO Use locality based date and time -->
                   <!-- TODO Get the date to right align -->
                   <span  class="secondary-content"><%= model.versions[i].date.toUTCString() %></span>
-                  <a href="/models/<%= model._id %>/<%= i %>/download"><i class="material-icons">file_download</i></a>
+                  <!-- TODO Make clicking download not toggle card -->
+                  <a href="data:application/octet-stream;base64,<%= model.versions[i].file.data.buffer.toString('base64') %>" download="<%= model.versions[i].file.name %>"><i class="material-icons">file_download</i></a>
                 </div>
                 <div class="collapsible-body">
                   <!-- TODO Make this size change work -->
