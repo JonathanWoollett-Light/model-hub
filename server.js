@@ -283,7 +283,7 @@ app.put('/models/:id/star', checkAuthenticated, async (req, res) => {
     if (update.modifiedCount==1) {
       await app.locals.database.collection("models").updateOne(
         { _id: ObjectId(req.params.id) },
-        { $inc: { stars: 1 } }
+        { $inc: { stars: 1 }, $push: { followers: req.user._id } }
       );
     }
     res.sendStatus(200);
@@ -308,7 +308,7 @@ app.put('/models/:id/unstar', checkAuthenticated, async (req, res) => {
     if (update.modifiedCount==1) {
       await app.locals.database.collection("models").updateOne(
         { _id: ObjectId(req.params.id) },
-        { $inc: { stars: -1 } }
+        { $inc: { stars: -1 }, $pull: { followers: req.user._id } }
       );
     }
     res.sendStatus(200);
@@ -425,7 +425,7 @@ app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
 
 // TODO Delete all hanging offer if model gets deleted
 app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
-  console.log("/models/:id/own");
+  console.log("/models/:id/disown");
   const model_id = ObjectId(req.params.id);
 
   // Removes user ownership
@@ -444,7 +444,14 @@ app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
 
     // If owners equalled 1 before the change, it equals 0 now, therefore delete
     if (model.value.owners == 1){
-      await app.locals.database.collection("models").deleteOne(({_id: model_id})).catch((err)=>{throw err});
+      
+      await Promise.all([
+        app.locals.database.collection("users").update(
+          {_id: { $in: model.value.followers } },
+          { $pull: { stars: model_id } }
+        ),
+        app.locals.database.collection("models").deleteOne(({_id: model_id}))
+      ])
     }
   }
   res.redirect("/user")
