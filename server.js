@@ -217,7 +217,10 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
       owners: 1,
       public: public
     };
-    if (public) model.stars = 0;
+    if (public) {
+      model.stars = 0;
+      model.followers = [];
+    };
 
     const insertResult = await app.locals.database.collection("models").insertOne(model)
     .catch((err)=>{throw err})
