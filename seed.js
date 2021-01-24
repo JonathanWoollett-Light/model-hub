@@ -9,35 +9,40 @@ async function seed(db) {
             hash: await bcrypt.hash("a",SALT),
             models: [],
             offers: [],
-            memory: 0
+            memory: 0,
+            stars: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "b@b",
             hash: await bcrypt.hash("b",SALT),
             models: [],
             offers: [],
-            memory: 0
+            memory: 0,
+            stars: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "c@c",
             hash: await bcrypt.hash("c",SALT),
             models: [],
             offers: [],
-            memory: 0
+            memory: 0,
+            stars: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "d@d",
             hash: await bcrypt.hash("d",SALT),
             models: [],
             offers: [],
-            memory: 0
+            memory: 0,
+            stars: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "aa@a",
             hash: await bcrypt.hash("aa",SALT),
             models: [],
             offers: [],
-            memory: 0
+            memory: 0,
+            stars: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "ab@a",
@@ -51,7 +56,8 @@ async function seed(db) {
             hash: await bcrypt.hash("ac",SALT),
             models: [],
             offers: [],
-            memory: 0
+            memory: 0,
+            stars: []
         }).catch((err)=>{})
     ])
 }
