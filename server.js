@@ -83,7 +83,7 @@ app.get('/', async (req, res) => {
       desc: true,
       poster: true
     }
-  ).toArray();
+  ).sort({ stars: -1 }).toArray();
 
   const strippedModels = models.map(model => { return {
     _id: model._id,
@@ -209,7 +209,7 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
   if (req.files.poster.size < 30*1024) {
     // console.log(req.files)
     const public = req.body.public=="on";
-    const model = {
+    let model = {
       title: req.body.title,
       desc: req.body.desc,
       poster: req.files.poster,
@@ -233,7 +233,7 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
       res.redirect('/models/create')
     });
 
-    res.redirect('/models/' + model.insertedId)
+    res.redirect('/models/' + insertResult.insertedId)
   } else {
     res.redirect('/models/create')
   }
