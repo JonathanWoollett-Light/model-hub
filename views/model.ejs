@@ -28,6 +28,9 @@
       <div class="row">
         <h1><%= model.title %></h1>
         <p><%= model.desc %></p>
+        <% if(model.public && email!=null) { %>
+          <a class="btn-floating btn-small waves-effect waves-light" id="starred"><i class="material-icons"><%= starred ? "star" : "star_border" %></i></a>
+        <% } %>
       </div>
       <!-- TODO Figure out how to best render versions -->
       <div class="row">
@@ -155,6 +158,24 @@
     document.addEventListener('DOMContentLoaded', () => {
       var elems = document.querySelectorAll('.modal');
       var instances = M.Modal.init(elems);
+    });
+    document.getElementById("starred").addEventListener("click",(doc) => {
+      console.log("triggered");
+      
+      const star = document.getElementById("starred").children[0].innerHTML == "star";
+      const icon = star ? "star_border" : "star";
+      const route = star ? "unstar" : "star";
+      console.log(star,icon,route);
+
+      let request =  new XMLHttpRequest();
+      console.log("/models/<%= model._id %>/"+route)
+      request.open("put","/models/<%= model._id %>/"+route,true);
+      request.onload = function() {
+        if(this.status == 200) {
+          document.getElementById("starred").children[0].innerHTML = icon;
+        }
+      }
+      request.send();
     });
   </script>
 </html>
