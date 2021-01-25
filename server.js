@@ -178,8 +178,10 @@ app.post('/register', checkNotAuthenticated, async (req, res) => {
     email: req.body.email,
     hash: hash,
     models: [],
+    views: [],
     offers: [],
-    memory: 0
+    memory: 0,
+    stars: []
   }).catch((err)=>{
      // Presumes error is result of email not being unique, thus checks logging in
      // TODO This trigger a scary error and uses code duplication, fix that
