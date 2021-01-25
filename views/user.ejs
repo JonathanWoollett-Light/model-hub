@@ -5,8 +5,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
+    <!-- <model-viewer> -->
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script nomodule src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
+
+    <!-- masonry -->
+    <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
   </head>
   <body>
     <nav>
@@ -43,7 +47,16 @@
           </ul>
         </div>
       <% } %>
-
+      <div class="row">
+        <div class="switch center-align">
+          <label>
+            Masonry off
+            <input type="checkbox" <%= masonry ? checked="checked" : "" %> id="masonry-switch">
+            <span class="lever"></span>
+            Masonry on
+          </label>
+        </div>
+      </div>
       <div class="row">
         <div class="col s6 offset-s3">
           <ul class="tabs">
@@ -52,68 +65,104 @@
             <li class="tab col s4"><a href="#stars">Stars</a></li>
           </ul>
         </div>
-        <div id="models" class="col s12">
-          <% for(let i=0;i<models.length; i++) { %>
-            <div class="col s6 m4 l3">
-              <div class="card medium">
-                <div class="card-image">
-                  <img src="data:image/jpeg;base64,<%= models[i].poster.data.buffer.toString('base64') %>">
-                </div>
-                <div class="card-content">
-                  <span class="card-title"><%= models[i].title %></span>
-                  <p><%= models[i].desc %></p>
-                </div>
-                <div class="card-action">
-                  <a href="/models/<%= models[i]._id %>">More</a>
-                </div>
+        <div id="models" class="col s8 offset-s2 ">
+          <div class="grid">
+            <% for(let i=0;i<models.length; i++) { %>
+              <!-- <div class="col s6 m4 l3"> -->
+              <div class="grid-item">
+                <a href="/models/<%= models[i]._id %>">
+                  <div class="card <%= masonry ? '' : 'small' %>">
+                    <div class="card-image">
+                      <img src="data:image/jpeg;base64,<%= models[i].poster.data.buffer.toString('base64') %>">
+                    </div>
+                    <div class="card-content">
+                      <span class="card-title"><%= models[i].title %></span>
+                    </div>
+                  </div>
+                </a>
               </div>
-            </div>
-          <% } %>
+            <% } %>
+          </div>
         </div>
-        <div id="views" class="col s12">
-          <% for(let i=0;i<views.length; i++) { %>
-            <div class="col s6 m4 l3">
-              <div class="card medium">
-                <div class="card-image">
-                  <img src="data:image/jpeg;base64,<%= views[i].poster.data.buffer.toString('base64') %>">
-                </div>
-                <div class="card-content">
-                  <span class="card-title"><%= views[i].title %></span>
-                  <p><%= views[i].desc %></p>
-                </div>
-                <div class="card-action">
-                  <a href="/models/<%= views[i]._id %>">More</a>
+        <div id="views" class="col s8 offset-s2">
+          <div class="grid">
+            <% for(let i=0;i<views.length; i++) { %>
+              <div class="grid-item">
+                <a href="/models/<%= views[i]._id %>">
+                  <div class="card <%= masonry ? '' : 'small' %>">
+                    <div class="card-image">
+                      <img src="data:image/jpeg;base64,<%= views[i].poster.data.buffer.toString('base64') %>">
+                    </div>
+                    <div class="card-content">
+                      <span class="card-title"><%= views[i].title %></span>
+                    </div>
+                  </a>
                 </div>
               </div>
-            </div>
-          <% } %>
+            <% } %>
+          </div>
         </div>
-        <div id="stars" class="col s12">
-          <% for(let i=0;i<stars.length; i++) { %>
-            <div class="col s6 m4 l3">
-              <div class="card medium">
-                <div class="card-image">
-                  <img src="data:image/jpeg;base64,<%= stars[i].poster.data.buffer.toString('base64') %>">
-                </div>
-                <div class="card-content">
-                  <span class="card-title"><%= stars[i].title %></span>
-                  <p><%= stars[i].desc %></p>
-                </div>
-                <div class="card-action">
-                  <a href="/models/<%= stars[i]._id %>">More</a>
-                </div>
+        <div id="stars" class="col s8 offset-s2">
+          <div class="grid">
+            <% for(let i=0;i<stars.length; i++) { %>
+              <div class="grid-item">
+                <a href="/models/<%= stars[i]._id %>">
+                  <div class="card <%= masonry ? '' : 'small' %>">
+                    <div class="card-image">
+                      <img src="data:image/jpeg;base64,<%= stars[i].poster.data.buffer.toString('base64') %>">
+                    </div>
+                    <div class="card-content">
+                      <span class="card-title"><%= stars[i].title %></span>
+                    </div>
+                  </div>
+                </a>
               </div>
-            </div>
-          <% } %>
+            <% } %>
+          </div>
         </div>
       </div>
     </div>
   </body>
+  <style>
+    a { color: inherit; } 
+    img { object-fit: contain; max-height: 300px; }
+    .grid-item { width: 200px; }
+    .card { margin: 10px; }
+  </style>
   <script>
     //var instance = M.Tabs.init(el);
     document.addEventListener('DOMContentLoaded', () => {
       let elems = document.querySelectorAll('.tabs');
       let instances = M.Tabs.init(elems);
+    });
+
+    let elem = document.querySelector('.grid');
+    let msnry = new Masonry( elem, {
+      itemSelector: '.grid-item'
+    });
+
+    document.getElementById("masonry-switch").addEventListener("click",(doc) => {
+      const checked = document.getElementById("masonry-switch").checked;
+      const route = checked ? "masonry-on" : "masonry-off";
+      //console.log(checked,route);
+
+      let request =  new XMLHttpRequest();
+      console.log("/user/"+route)
+      request.open("put","/user/"+route,true);
+      request.onload = function() {
+        const cards = document.getElementsByClassName("card");
+        //console.log(cards);
+        if(checked) {
+          for(let i=0;i<cards.length;i++){
+            cards[i].classList.remove("small");
+          }
+        } else {
+          for(let i=0;i<cards.length;i++){
+            cards[i].classList.add("small");
+          }
+        }
+      }
+      request.send();
     });
   </script>
 </html>
