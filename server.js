@@ -146,6 +146,26 @@ app.get('/user', checkAuthenticated, async (req, res) => {
       
       resolve(strippedViews);
     }),
+    new Promise(async (resolve)=>{
+      const stars = await app.locals.database.collection("models").find(
+        { _id: { $in: req.user.stars } }, 
+        { 
+          _id: true,
+          title: true,
+          desc: true,
+          poster: true
+        }
+      ).toArray();
+
+      const strippedStars = stars.map(view => { return {
+        _id: view._id,
+        title: view.title,
+        desc: view.desc,
+        poster: view.poster
+      }});
+      
+      resolve(strippedStars);
+    })
   ]).then((data)=> {
     console.log("finished");
     //console.log(data);
@@ -154,6 +174,7 @@ app.get('/user', checkAuthenticated, async (req, res) => {
       data: req.user.data,
       models: data[0],//strippedModels,
       views: data[1],//strippedViews,
+      stars: data[2],
       offers: req.user.offers,
       memory: req.user.memory
     });
