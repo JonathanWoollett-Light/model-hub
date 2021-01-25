@@ -69,8 +69,6 @@ app.use(upload())
 // Static model testing
 app.use( express.static( "static" ) );
 
-app.listen(3001)
-
 app.get('/', async (req, res) => {
   console.log("/")
   //console.log(req.user.models.length)
@@ -83,7 +81,7 @@ app.get('/', async (req, res) => {
       desc: true,
       poster: true
     }
-  ).toArray();
+  ).sort({ stars: -1 }).toArray();
 
   const strippedModels = models.map(model => { return {
     _id: model._id,
@@ -227,7 +225,8 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
   const size = req.files.poster.size + req.files.model.size;
   if (req.files.poster.size < 30*1024) {
     // console.log(req.files)
-    const public = req.body.public=="on" ? true : false;
+    const public = req.body.public=="on";
+    
     let model = {
       title: req.body.title,
       desc: req.body.desc,
@@ -237,17 +236,21 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
       public: public,
       awaiting: []
     };
-
-    if(!public) {
+    
+    if (public) {
+      model.stars = 0;
+      model.followers = [];
+    } else {
       model.viewers = []
-    }
+    };
 
-    const insert = await app.locals.database.collection("models").insertOne(model);
+    const insertResult = await app.locals.database.collection("models").insertOne(model)
+    .catch((err)=>{throw err})
 
     await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
       { 
-        $push: {models: insert.insertedId },
+        $push: { models: insertResult.insertedId },
         $inc: { memory: size }
       }
     ).catch((err)=>{
@@ -255,7 +258,7 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
       res.redirect('/models/create')
     });
 
-    res.redirect('/models/' + insert.insertedId)
+    res.redirect('/models/' + insertResult.insertedId)
   } else {
     res.redirect('/models/create')
   }
@@ -271,20 +274,70 @@ app.get('/models/:id', async (req, res) => {
   else if (req.isAuthenticated()) {
     const owns = req.user.models.some(val => val.equals(req.params.id));
     const views = req.user.views.some(val => val.equals(req.params.id));
-    // console.log(owns,views);
-
+    const starred = req.user.stars.some(val => val.equals(req.params.id));
     if (model.public) {
-      res.render("model.ejs",{ email: req.user.email, owner: owns, model: model })
+      res.render("model.ejs",{ email: req.user.email, owner: owns, model: model, starred: starred })
     }
     else if(owns || views) {
-      res.render("model.ejs",{ email: req.user.email, owner: owns, model: model })
+      res.render("model.ejs",{ email: req.user.email, owner: owns, model: model, starred: starred })
     }
   }
   else if(model.public) {
-    res.render("model.ejs",{ email: null, owner: false, model: model })
+    res.render("model.ejs",{ email: null, owner: false, model: model, starred: false })
   }
   else {
     res.status(403)
+  }
+})
+
+// like
+app.put('/models/:id/star', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/star");
+
+  // Check public model exists
+  const model = await app.locals.database.collection("models").findOne({ 
+    _id: ObjectId(req.params.id),
+    public: true
+  });
+  if (model==null) res.status(403);
+  else {
+    const update = await app.locals.database.collection("users").updateOne(
+      { _id: req.user._id },
+      { $addToSet: { stars: ObjectId(req.params.id) } }
+    );
+    // If $addToSet lead to an update, i.e. if the user hasn't already starred the model
+    if (update.modifiedCount==1) {
+      await app.locals.database.collection("models").updateOne(
+        { _id: ObjectId(req.params.id) },
+        { $inc: { stars: 1 }, $push: { followers: req.user._id } }
+      );
+    }
+    res.sendStatus(200);
+  }
+})
+// un-like
+app.put('/models/:id/unstar', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/unstar");
+
+  // Check public model exists
+  const model = await app.locals.database.collection("models").findOne({ 
+    _id: ObjectId(req.params.id),
+    public: true
+  });
+  if (model==null) res.status(403);
+  else {
+    const update = await app.locals.database.collection("users").updateOne(
+      { _id: req.user._id },
+      { $pull: { stars: ObjectId(req.params.id) } }
+    );
+    // If $pull lead to an update, i.e. if the user had starred the model
+    if (update.modifiedCount==1) {
+      await app.locals.database.collection("models").updateOne(
+        { _id: ObjectId(req.params.id) },
+        { $inc: { stars: -1 }, $pull: { followers: req.user._id } }
+      );
+    }
+    res.sendStatus(200);
   }
 })
 
@@ -330,7 +383,6 @@ app.post('/models/:id/version', checkAuthenticated, async (req, res) => {
   }
   res.status(403);
 })
-
 
 // TODO Prevents redundant offers (being offered viewership of model they can already view etc.)
 app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
@@ -465,7 +517,7 @@ app.put('/models/:id/view', checkAuthenticated, async (req, res) => {
 
 // TODO Delete all hanging offer if model gets deleted
 app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
-  console.log("/models/:id/own");
+  console.log("/models/:id/disown");
   const model_id = ObjectId(req.params.id);
 
   // Removes user ownership
@@ -493,7 +545,13 @@ app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
           { $pull: { offers: { model: model_id } } }
         )
       ]);
-      if (!model.value.public) {
+      if(model.value.public) {
+        await app.locals.database.collection("users").update(
+          {_id: { $in: model.value.followers } },
+          { $pull: { stars: model_id } }
+        )
+      }
+      else {
         // Delete views
         await app.locals.database.collection("users").updateMany(
           { _id: { $in: model.value.viewers } },
@@ -504,6 +562,3 @@ app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
   }
   res.redirect("/user")
 })
-
-//------------------------------------
-
