@@ -36,11 +36,6 @@
       <div class="row">
         <div class="col s6">
           <ul class="collapsible">
-            <!-- <li class="active">
-              <div class="collapsible-header">First</div>
-              <div class="collapsible-body"><span>Lorem ipsum dolor sit amet.</span></div>
-            </li> -->
-            
             <% for(let i=model.versions.length-1;i>=0; i--) { %>
               <li class="<%= i==model.versions.length-1 ? 'active': ''%>"">
                 <div class="collapsible-header">

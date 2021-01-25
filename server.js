@@ -91,13 +91,13 @@ app.get('/', async (req, res) => {
   }});
 
   const email = req.isAuthenticated() ? req.user.email : null;
+  const masonry = req.isAuthenticated() ? req.user.masonry : true;
 
   res.render(
     'index.ejs', 
-    { email: email, models: strippedModels }
+    { email: email, models: strippedModels, masonry: masonry }
   );
 })
-
 
 // User roots
 //------------------------------------
@@ -167,7 +167,7 @@ app.get('/user', checkAuthenticated, async (req, res) => {
       resolve(strippedStars);
     })
   ]).then((data)=> {
-    console.log("finished");
+    //console.log("finished");
     //console.log(data);
     res.render('user.ejs', { 
       email: req.user.email,
@@ -176,9 +176,23 @@ app.get('/user', checkAuthenticated, async (req, res) => {
       views: data[1],//strippedViews,
       stars: data[2],
       offers: req.user.offers,
-      memory: req.user.memory
+      memory: req.user.memory,
+      masonry: req.user.masonry
     });
   });
+  // TODO Use `promise.all` here
+})
+
+app.put('/user/masonry-on', checkAuthenticated, async (req, res) => {
+  console.log("/user/masonry-on");
+  await app.locals.database.collection("users").updateOne({ _id: req.user._id }, { $set: { masonry: true } });
+  res.sendStatus(200);
+  // TODO Use `promise.all` here
+})
+app.put('/user/masonry-off', checkAuthenticated, async (req, res) => {
+  console.log("/user/masonry-off");
+  await app.locals.database.collection("users").updateOne({ _id: req.user._id }, { $set: { masonry: false } });
+  res.sendStatus(200);
   // TODO Use `promise.all` here
 })
 
