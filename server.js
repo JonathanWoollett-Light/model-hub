@@ -105,50 +105,60 @@ app.get('/', async (req, res) => {
 app.get('/user', checkAuthenticated, async (req, res) => {
   console.log("/user")
   //console.log(req.user.models.length)
+  Promise.all([
+    new Promise(async (resolve)=>{
+      const models = await app.locals.database.collection("models").find(
+        { _id: { $in: req.user.models } }, 
+        { 
+          _id: true,
+          title: true,
+          desc: true,
+          poster: true
+        }
+      ).toArray();
 
-  // TODO Use `promise.all` here
-  const models = await app.locals.database.collection("models").find(
-    { _id: { $in: req.user.models } }, 
-    { 
-      _id: true,
-      title: true,
-      desc: true,
-      poster: true
-    }
-  ).toArray();
-  
-  const strippedModels = models.map(model => { return {
-    _id: model._id,
-    title: model.title,
-    desc: model.desc,
-    poster: model.poster
-  }});
+      const strippedModels = models.map(model => { return {
+        _id: model._id,
+        title: model.title,
+        desc: model.desc,
+        poster: model.poster
+      }});
 
-  const views = await app.locals.database.collection("models").find(
-    { _id: { $in: req.user.views } }, 
-    { 
-      _id: true,
-      title: true,
-      desc: true,
-      poster: true
-    }
-  ).toArray();
-  
-  const strippedViews = views.map(view => { return {
-    _id: view._id,
-    title: view.title,
-    desc: view.desc,
-    poster: view.poster
-  }});
+      return resolve(strippedModels);
+    }),
+    new Promise(async (resolve)=>{
+      const views = await app.locals.database.collection("models").find(
+        { _id: { $in: req.user.views } }, 
+        { 
+          _id: true,
+          title: true,
+          desc: true,
+          poster: true
+        }
+      ).toArray();
 
-  res.render('user.ejs', { 
-    email: req.user.email,
-    data: req.user.data,
-    models: strippedModels,
-    views: strippedViews,
-    offers: req.user.offers,
-    memory: req.user.memory
+      const strippedViews = views.map(view => { return {
+        _id: view._id,
+        title: view.title,
+        desc: view.desc,
+        poster: view.poster
+      }});
+      
+      resolve(strippedViews);
+    }),
+  ]).then((data)=> {
+    console.log("finished");
+    //console.log(data);
+    res.render('user.ejs', { 
+      email: req.user.email,
+      data: req.user.data,
+      models: data[0],//strippedModels,
+      views: data[1],//strippedViews,
+      offers: req.user.offers,
+      memory: req.user.memory
+    });
   });
+  // TODO Use `promise.all` here
 })
 
 app.post('/login', checkNotAuthenticated, passport.authenticate('local', {

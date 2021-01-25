@@ -170,23 +170,28 @@
       var elems = document.querySelectorAll('.modal');
       var instances = M.Modal.init(elems);
     });
-    document.getElementById("starred").addEventListener("click",(doc) => {
-      console.log("triggered");
-      
-      const star = document.getElementById("starred").children[0].innerHTML == "star";
-      const icon = star ? "star_border" : "star";
-      const route = star ? "unstar" : "star";
-      console.log(star,icon,route);
+    
+    const starred = document.getElementById("starred");
+    if (starred != null) {
+      console.log("this shouldnt trigger")
+      starred.addEventListener("click",(doc) => {
+        console.log("triggered");
+        
+        const star = document.getElementById("starred").children[0].innerHTML == "star";
+        const icon = star ? "star_border" : "star";
+        const route = star ? "unstar" : "star";
+        console.log(star,icon,route);
 
-      let request =  new XMLHttpRequest();
-      console.log("/models/<%= model._id %>/"+route)
-      request.open("put","/models/<%= model._id %>/"+route,true);
-      request.onload = function() {
-        if(this.status == 200) {
-          document.getElementById("starred").children[0].innerHTML = icon;
+        let request =  new XMLHttpRequest();
+        console.log("/models/<%= model._id %>/"+route)
+        request.open("put","/models/<%= model._id %>/"+route,true);
+        request.onload = function() {
+          if(this.status == 200) {
+            document.getElementById("starred").children[0].innerHTML = icon;
+          }
         }
-      }
-      request.send();
-    });
+        request.send();
+      });
+    }
   </script>
 </html>
