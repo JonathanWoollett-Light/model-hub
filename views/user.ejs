@@ -64,6 +64,26 @@
           </div>
         <% } %>
       </div>
+
+      <h4 class="center-align">Views</h4>
+      <div class="row">
+        <% for(let i=0;i<views.length; i++) { %>
+          <div class="col s12 m6 l4">
+            <div class="card large">
+              <div class="card-image">
+                <img src="data:image/jpeg;base64,<%= views[i].poster.data.buffer.toString('base64') %>">
+              </div>
+              <div class="card-content">
+                <span class="card-title"><%= views[i].title %></span>
+                <p><%= views[i].desc %></p>
+              </div>
+              <div class="card-action">
+                <a href="/models/<%= views[i]._id %>">More</a>
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </div>
     </div>
   </body>
 </html>

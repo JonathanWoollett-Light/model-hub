@@ -69,8 +69,6 @@ app.use(upload())
 // Static model testing
 app.use( express.static( "static" ) );
 
-
-
 app.get('/', async (req, res) => {
   console.log("/")
   //console.log(req.user.models.length)
@@ -108,6 +106,7 @@ app.get('/user', checkAuthenticated, async (req, res) => {
   console.log("/user")
   //console.log(req.user.models.length)
 
+  // TODO Use `promise.all` here
   const models = await app.locals.database.collection("models").find(
     { _id: { $in: req.user.models } }, 
     { 
@@ -125,10 +124,28 @@ app.get('/user', checkAuthenticated, async (req, res) => {
     poster: model.poster
   }});
 
+  const views = await app.locals.database.collection("models").find(
+    { _id: { $in: req.user.views } }, 
+    { 
+      _id: true,
+      title: true,
+      desc: true,
+      poster: true
+    }
+  ).toArray();
+  
+  const strippedViews = views.map(view => { return {
+    _id: view._id,
+    title: view.title,
+    desc: view.desc,
+    poster: view.poster
+  }});
+
   res.render('user.ejs', { 
     email: req.user.email,
     data: req.user.data,
     models: strippedModels,
+    views: strippedViews,
     offers: req.user.offers,
     memory: req.user.memory
   });
@@ -209,17 +226,22 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
   if (req.files.poster.size < 30*1024) {
     // console.log(req.files)
     const public = req.body.public=="on";
+    
     let model = {
       title: req.body.title,
       desc: req.body.desc,
       poster: req.files.poster,
       versions: [{file: req.files.model, date: new Date(), desc: "Initial" }],
       owners: 1,
-      public: public
+      public: public,
+      awaiting: []
     };
+    
     if (public) {
       model.stars = 0;
       model.followers = [];
+    } else {
+      model.viewers = []
     };
 
     const insertResult = await app.locals.database.collection("models").insertOne(model)
@@ -246,17 +268,18 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
 // TODO Make this nicer
 app.get('/models/:id', async (req, res) => {
   console.log("/models/:id")
-
+  
   const model = await app.locals.database.collection("models").findOne({ _id: ObjectId(req.params.id) });
   if (model==null) res.status(403)
   else if (req.isAuthenticated()) {
     const owns = req.user.models.some(val => val.equals(req.params.id));
+    const views = req.user.views.some(val => val.equals(req.params.id));
     const starred = req.user.stars.some(val => val.equals(req.params.id));
     if (model.public) {
       res.render("model.ejs",{ email: req.user.email, owner: owns, model: model, starred: starred })
     }
-    else if(owns) {
-      res.render("model.ejs",{ email: req.user.email, owner: true, model: model, starred: starred })
+    else if(owns || views) {
+      res.render("model.ejs",{ email: req.user.email, owner: owns, model: model, starred: starred })
     }
   }
   else if(model.public) {
@@ -394,6 +417,39 @@ app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
   res.redirect("/models/" + req.params.id)
 })
 
+app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/share");
+  const model_id = ObjectId(req.params.id);
+  //const user_id = ObjectId(req.body.id)
+
+  // Checks offering user has ownership of model
+  const owner = await app.locals.database.collection("users").findOne({
+    _id: req.user._id,
+    models: model_id
+  });
+
+  if (owner==null) res.sendStatus(403);
+  // If user exists
+  const user = await app.locals.database.collection("users").findOne({ email: req.body.email });
+  if (user != null) {
+    // If user doesn't already view the model
+    const contains = user.views.some(val => val.equals(req.params.id))
+    if(!contains) {
+      await Promise.all([
+        app.locals.database.collection("models").updateOne(
+          { _id: model_id},
+          { $addToSet: { awaiting: { type: "view", for: user._id }}}
+        ),
+        app.locals.database.collection("users").updateOne(
+          { _id: user._id },
+          { $addToSet: { offers: { model: model_id, type: "view", from: req.user._id } } }
+        )
+      ]);
+    }
+  }
+  res.redirect("/models/" + req.params.id)
+})
+
 app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/own");
   const model_id = ObjectId(req.params.id);
@@ -426,6 +482,39 @@ app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
   res.redirect("/user")
 })
 
+app.put('/models/:id/view', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/view");
+  const model_id = ObjectId(req.params.id);
+
+  // Checks model exists and has offer to be pulled
+  const update = await app.locals.database.collection("models").updateOne(
+    { _id: model_id },
+    { $pull: { awaiting: { type: "view", for: req.user._id} } }
+  );
+  
+  if (update.modifiedCount == 0) res.sendStatus(403);
+  // If found and modified `update.modifiedCount!=0` then model exists and did have offer
+
+  // The `$push`s here do not need to be `$addToSet` as a user cannot have an offer to view 
+  //  something they already view.
+  await Promise.all([
+    // TODO Combine this with earlier "models" update
+    app.locals.database.collection("models").updateOne(
+      { _id: model_id },
+      { $push: { viewers: req.user._id } }
+    ),
+    app.locals.database.collection("users").updateOne(
+      { _id: req.user._id },
+      {
+        $push: { views: model_id },
+        $pull: { offers: { model: model_id }}
+      }
+    )
+  ])
+  
+  res.redirect("/user")
+})
+
 // TODO Delete all hanging offer if model gets deleted
 app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/disown");
@@ -435,7 +524,7 @@ app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
   const user = await app.locals.database.collection("users").updateOne(
     { _id: req.user._id },
     { $pull: { models: model_id } }
-  ).catch((err)=>{throw err});
+  );
 
   // Checks update was made in removing user ownership (in affect checks user did own model)
   if (user.modifiedCount == 1) {
@@ -443,23 +532,33 @@ app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
     const model = await app.locals.database.collection("models").findOneAndUpdate(
       {_id: model_id},
       { $inc: {owners: -1}}
-    ).catch((err)=>{throw err});
+    );
 
     // If owners equalled 1 before the change, it equals 0 now, therefore delete
-    if (model.value.owners == 1){
-      
+    if (model.value.owners == 1) {
       await Promise.all([
-        app.locals.database.collection("users").update(
+        // Delete model
+        app.locals.database.collection("models").deleteOne(({_id: model_id})),
+        // Deletes offers
+        app.locals.database.collection("users").updateMany(
+          { _id: { $in: model.value.awaiting.map(x=>x.for) } },
+          { $pull: { offers: { model: model_id } } }
+        )
+      ]);
+      if(model.value.public) {
+        await app.locals.database.collection("users").update(
           {_id: { $in: model.value.followers } },
           { $pull: { stars: model_id } }
-        ),
-        app.locals.database.collection("models").deleteOne(({_id: model_id}))
-      ])
+        )
+      }
+      else {
+        // Delete views
+        await app.locals.database.collection("users").updateMany(
+          { _id: { $in: model.value.viewers } },
+          { $pull: { views: model_id } }
+        );
+      }
     }
   }
   res.redirect("/user")
 })
-
-//------------------------------------
-
-
