@@ -124,7 +124,7 @@ app.get('/user', checkAuthenticated, async (req, res) => {
         poster: model.poster
       }});
 
-      return resolve(strippedModels);
+      resolve(strippedModels);
     }),
     new Promise(async (resolve)=>{
       const views = await app.locals.database.collection("models").find(
