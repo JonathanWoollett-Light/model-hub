@@ -558,6 +558,7 @@ app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
         )
       ]);
       if(model.value.public) {
+        // Deletes stars
         await app.locals.database.collection("users").update(
           {_id: { $in: model.value.followers } },
           { $pull: { stars: model_id } }
