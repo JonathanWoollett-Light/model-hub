@@ -72,6 +72,7 @@ app.use( express.static( "static" ) );
 app.get('/', async (req, res) => {
   console.log("/")
   //console.log(req.user.models.length)
+  // console.log(req.user);
 
   let models = await app.locals.database.collection("models").find(
     {public: true},
@@ -105,6 +106,9 @@ app.get('/', async (req, res) => {
 app.get('/user', checkAuthenticated, async (req, res) => {
   console.log("/user")
   //console.log(req.user.models.length)
+  // const model_id = ObjectId("600f0ecf5b81751fd09df25f");
+  // const model = await app.locals.database.collection("models").findOne({_id: model_id}).catch((err) => {throw err});
+  // console.log(model.versions[model.versions.length - 1].size);
   Promise.all([
     new Promise(async (resolve)=>{
       const models = await app.locals.database.collection("models").find(
@@ -251,6 +255,8 @@ app.get('/models/create', checkAuthenticated, (req, res) => {
 })
 
 // TODO Should this be "/models"
+// TODO remove magic number for memory
+// TODO throw error maybe if failed?
 app.post('/models/create', checkAuthenticated, async (req, res) => {
   console.log("/models/create");
   // console.log(typeof req.body.public, req.body.public);
@@ -418,6 +424,7 @@ app.post('/models/:id/version', checkAuthenticated, async (req, res) => {
 })
 
 // TODO Prevents redundant offers (being offered viewership of model they can already view etc.)
+// this just sends an offer
 app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/shareOwnership");
   const model_id = ObjectId(req.params.id);
@@ -450,6 +457,7 @@ app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
   res.redirect("/models/" + req.params.id)
 })
 
+// this just gives viewing permisions
 app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/share");
   const model_id = ObjectId(req.params.id);
@@ -483,6 +491,9 @@ app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
   res.redirect("/models/" + req.params.id)
 })
 
+// this gives ownership
+// TODO fix magic number for memory
+// TODO throw errror or something for being over limit
 app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/own");
   const model_id = ObjectId(req.params.id);
@@ -494,7 +505,16 @@ app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
   }).catch((err) => {throw err});
 
   if (model==null) res.status(403);
+  
+  // sorts out the size things when ownership gets shared
+  // this spreads out the size over all the owners
+  const model_size = model.versions[model.versions.length - 1].size;
+  const size = model_size + req.user.memory;
+  if (size >= 30*1024){
+    console.log("throw error or something for being over the limit, user would be overloaded");
+  }
 
+  // updates the database
   await Promise.all([
     app.locals.database.collection("models").updateOne(
       {_id: model_id},
@@ -507,7 +527,8 @@ app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
       {_id: req.user._id},
       {
         $push: { models: model_id },
-        $pull: { offers: { model: model_id }}
+        $pull: { offers: { model: model_id }},
+        $inc: { memory: model_size }
       }
     ),
   ]).catch((err)=> { throw err });
