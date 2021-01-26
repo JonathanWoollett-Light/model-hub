@@ -74,28 +74,20 @@ app.get('/', async (req, res) => {
   //console.log(req.user.models.length)
 
   let models = await app.locals.database.collection("models").find(
-    {public: true},
-    { 
-      _id: true,
-      title: true,
-      desc: true,
-      poster: true
-    }
-  ).sort({ stars: -1 }).toArray();
-
-  const strippedModels = models.map(model => { return {
-    _id: model._id,
-    title: model.title,
-    desc: model.desc,
-    poster: model.poster
-  }});
+    { public: true },
+  ).project({
+    title: true,
+    desc: true,
+    "poster.data": true
+  }).limit(10).sort({ stars: -1 }).toArray();
+  console.log(models);
 
   const email = req.isAuthenticated() ? req.user.email : null;
   const masonry = req.isAuthenticated() ? req.user.masonry : true;
 
   res.render(
     'index.ejs', 
-    { email: email, models: strippedModels, masonry: masonry }
+    { email: email, models: models, masonry: masonry }
   );
 })
 
@@ -106,66 +98,27 @@ app.get('/user', checkAuthenticated, async (req, res) => {
   console.log("/user")
   //console.log(req.user.models.length)
   Promise.all([
-    new Promise(async (resolve)=>{
-      const models = await app.locals.database.collection("models").find(
-        { _id: { $in: req.user.models } }, 
-        { 
-          _id: true,
-          title: true,
-          desc: true,
-          poster: true
-        }
-      ).toArray();
-
-      const strippedModels = models.map(model => { return {
-        _id: model._id,
-        title: model.title,
-        desc: model.desc,
-        poster: model.poster
-      }});
-
-      resolve(strippedModels);
-    }),
-    new Promise(async (resolve)=>{
-      const views = await app.locals.database.collection("models").find(
-        { _id: { $in: req.user.views } }, 
-        { 
-          _id: true,
-          title: true,
-          desc: true,
-          poster: true
-        }
-      ).toArray();
-
-      const strippedViews = views.map(view => { return {
-        _id: view._id,
-        title: view.title,
-        desc: view.desc,
-        poster: view.poster
-      }});
-      
-      resolve(strippedViews);
-    }),
-    new Promise(async (resolve)=>{
-      const stars = await app.locals.database.collection("models").find(
-        { _id: { $in: req.user.stars } }, 
-        { 
-          _id: true,
-          title: true,
-          desc: true,
-          poster: true
-        }
-      ).toArray();
-
-      const strippedStars = stars.map(view => { return {
-        _id: view._id,
-        title: view.title,
-        desc: view.desc,
-        poster: view.poster
-      }});
-      
-      resolve(strippedStars);
-    })
+    app.locals.database.collection("models").find(
+      { _id: { $in: req.user.models } }
+    ).project({
+      title: true,
+      desc: true,
+      "poster.data": true
+    }).toArray(),
+    app.locals.database.collection("models").find(
+      { _id: { $in: req.user.views } }
+    ).project({
+      title: true,
+      desc: true,
+      "poster.data": true
+    }).toArray(),
+    app.locals.database.collection("models").find(
+      { _id: { $in: req.user.stars } }
+    ).project({
+      title: true,
+      desc: true,
+      "poster.data": true
+    }).toArray()
   ]).then((data)=> {
     //console.log("finished");
     //console.log(data);
