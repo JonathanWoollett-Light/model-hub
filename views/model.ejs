@@ -27,10 +27,17 @@
     <div class="container">
       <div class="row">
         <h1><%= model.title %></h1>
-        <p><%= model.desc %></p>
         <% if(model.public && email!=null) { %>
           <a class="btn-floating btn-small waves-effect waves-light" id="starred"><i class="material-icons"><%= starred ? "star" : "star_border" %></i></a>
         <% } %>
+        <% if(owner){ %>
+          <div class="chips chips-initial chips-placeholder chips-autocomplete"></div>
+        <% } else { %>
+          <% for(i=0;i<model.tags.length;i++){ %>
+            <div class="chip"><%= model.tags[i] %></div>
+          <% } %>
+        <% } %>
+        <p><%= model.desc %></p>
       </div>
       <!-- TODO Figure out how to best render versions -->
       <div class="row">
@@ -63,8 +70,8 @@
                   <label for="title">Title</label>
                 </div>
                 <div class="input-field">
-                  <input type="text" id="desc" name="desc">
-                  <label for="desc">Description</label>
+                  <input type="text" id="update-desc" name="desc">
+                  <label for="update-desc">Description</label>
                 </div>
                 <div class="file-field input-field">
                   <div class="btn">
@@ -84,8 +91,8 @@
             <div class="row">
               <form class="z-depth-1" style="padding:10px;" action="/models/<%= model._id %>/version" method="post" enctype="multipart/form-data">
                 <div class="input-field">
-                  <input type="text" id="desc" name="desc" required>
-                  <label for="desc">Description</label>
+                  <input type="text" id="version-desc" name="desc" required>
+                  <label for="version-desc">Description</label>
                 </div>
                 <div class="file-field input-field">
                   <div class="btn">
@@ -158,19 +165,40 @@
   </body>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      var elems = document.querySelectorAll('.collapsible');
-      var instances = M.Collapsible.init(elems);
+      let elems = document.querySelectorAll('.collapsible');
+      let instances = M.Collapsible.init(elems);
     });
     document.addEventListener('DOMContentLoaded', () => {
-      var elems = document.querySelectorAll('.modal');
-      var instances = M.Modal.init(elems);
+      let elems = document.querySelectorAll('.modal');
+      let instances = M.Modal.init(elems);
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+      let elems = document.querySelectorAll('.chips');
+      if (elems.length==0) return;
+      
+      const raw = "<%- model.tags %>".split(",");
+      let initialTags = [...new Set(raw)].map(x=>{return{tag:x}});
+
+      let instances = M.Chips.init(elems, {
+        data: initialTags,
+        placeholder:"Enter a tag",
+        secondaryPlaceholder:"+Tag",
+        autocompleteOptions: {
+          data: autocompleteTags(),
+          minLength: 2
+        },
+        onChipAdd: (data)=>{
+          setTags(data[0].M_Chips.chipsData.map(x=>x.tag));
+        },
+        onChipDelete: (data)=>{
+          setTags(data[0].M_Chips.chipsData.map(x=>x.tag));
+        }
+      });
     });
     
     const starred = document.getElementById("starred");
     if (starred != null) {
-      console.log("this shouldnt trigger")
       starred.addEventListener("click",(doc) => {
-        console.log("triggered");
         
         const star = document.getElementById("starred").children[0].innerHTML == "star";
         const icon = star ? "star_border" : "star";
@@ -187,6 +215,23 @@
         }
         request.send();
       });
+    }
+    function autocompleteTags(tags = "<%- tags %>".split(",")) {
+      let autocompleteTags = {};
+      for(i=0;i<tags.length;i++) {
+        autocompleteTags[tags[i]] = null;
+      }
+      //console.log(autocompleteTags)
+      return autocompleteTags
+    }
+    function setTags(tags){
+      console.log(tags)
+      const route = "/models/<%- model._id %>/tags/"+tags.join(",");
+      //console.log(route);
+
+      let request =  new XMLHttpRequest();
+      request.open("put",route,true);
+      request.send();
     }
   </script>
 </html>

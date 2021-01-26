@@ -73,20 +73,32 @@ app.get('/', async (req, res) => {
   console.log("/")
   //console.log(req.user.models.length)
 
+  // Gets top 20 starred models
   let models = await app.locals.database.collection("models").find(
     { public: true },
   ).project({
     title: true,
-    "poster.data": true
-  }).limit(10).sort({ stars: -1 }).toArray();
-  //console.log(models);
+    "poster.data": true,
+    tags: true
+  }).limit(20).sort({ stars: -1 }).toArray();
+
+  // Gets all distinct tags on top 100 starred models
+  const tags = await app.locals.database.collection("models").find(
+    { public: true },
+  ).project({
+    _id: false,
+    tags: true
+  }).limit(100).sort({ stars: -1 }).toArray();
+  //console.log(tags)
+  let distinctTags = [...new Set(tags.flatMap(x=>x.tags))];
+  //console.log(distinctTags)
 
   const email = req.isAuthenticated() ? req.user.email : null;
   const masonry = req.isAuthenticated() ? req.user.masonry : true;
 
   res.render(
     'index.ejs', 
-    { email: email, models: models, masonry: masonry }
+    { email: email, models: models, masonry: masonry, tags: distinctTags }
   );
 })
 
@@ -208,29 +220,70 @@ function checkNotAuthenticated(req, res, next) {
 // Model roots
 //------------------------------------
 
-app.get('/models/create', checkAuthenticated, (req, res) => {
+app.get('/models/tags/:tags', async (req, res) => {
+  console.log("/models/tags/:tags")
+  //console.log(req.params.tags);
+
+  const tags = req.params.tags.split(",");
+  if(tags[0] == "") tags = [];
+  //console.log(tags);
+
+  const models = await app.locals.database.collection("models").find({
+    public: true,
+    tags: { $elemMatch: { $in: tags } } // Where any tag in the model matches any tag in the given tags
+  }).project({
+    title: true,
+    "poster.data": true,
+    tags: true
+  }).limit(20).sort({ stars: -1 }).toArray();
+
+  //console.log(models);
+  res.json(models);
+})
+
+app.get('/models/create', checkAuthenticated, async (req, res) => {
   console.log("/models/create")
-  res.render('create-model.ejs')
+
+  // Tags used in top 100 models for autocomplete
+  const tags = await app.locals.database.collection("models").find(
+    { public: true },
+  ).project({
+    _id: false,
+    tags: true
+  }).limit(100).sort({ stars: -1 }).toArray();
+  //console.log(tags)
+  let distinctTags = [...new Set(tags.flatMap(x=>x.tags))];
+
+  res.render('create-model.ejs', { tags: distinctTags })
 })
 
 // TODO Should this be "/models"
 app.post('/models/create', checkAuthenticated, async (req, res) => {
   console.log("/models/create");
   // console.log(typeof req.body.public, req.body.public);
+  // console.log(req.body)
 
   const size = req.files.poster.size + req.files.model.size;
   if (req.files.poster.size < 30*1024) {
     // console.log(req.files)
     const public = req.body.public=="on";
     
+    let tags = req.body.tags.split(",");
+    if(tags[0] == "") tags = [];
+    // console.log(tags);
+
+    const modelId = new ObjectId();
+
     let model = {
+      _id: modelId,
       title: req.body.title,
       desc: req.body.desc,
       poster: req.files.poster,
       versions: [{file: req.files.model, date: new Date(), desc: "Initial" }],
       owners: 1,
       public: public,
-      awaiting: []
+      awaiting: [],
+      tags: tags
     };
     
     if (public) {
@@ -240,21 +293,19 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
       model.viewers = []
     };
 
-    const insertResult = await app.locals.database.collection("models").insertOne(model)
-    .catch((err)=>{throw err})
-
     await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
       { 
-        $push: { models: insertResult.insertedId },
+        $push: { models: modelId },
         $inc: { memory: size }
       }
     ).catch((err)=>{
       // Presumes error is result of memory being more than max
       res.redirect('/models/create')
     });
+    await app.locals.database.collection("models").insertOne(model);
 
-    res.redirect('/models/' + insertResult.insertedId)
+    res.redirect('/models/' + modelId)
   } else {
     res.redirect('/models/create')
   }
@@ -271,18 +322,65 @@ app.get('/models/:id', async (req, res) => {
     const owns = req.user.models.some(val => val.equals(req.params.id));
     const views = req.user.views.some(val => val.equals(req.params.id));
     const starred = req.user.stars.some(val => val.equals(req.params.id));
-    if (model.public) {
-      res.render("model.ejs",{ email: req.user.email, owner: owns, model: model, starred: starred })
-    }
-    else if(owns || views) {
-      res.render("model.ejs",{ email: req.user.email, owner: owns, model: model, starred: starred })
+
+    // Tags used in top 100 models for autocomplete
+    const tags = await app.locals.database.collection("models").find(
+      { public: true },
+    ).project({
+      _id: false,
+      tags: true
+    }).limit(100).sort({ stars: -1 }).toArray();
+    //console.log(tags)
+    let distinctTags = [...new Set(tags.flatMap(x=>x.tags))];
+
+    if (model.public || owns || views) {
+      res.render("model.ejs", { email: req.user.email, owner: owns, model: model, starred: starred, tags: distinctTags })
+    } else {
+      res.sendStatus(403);
     }
   }
   else if(model.public) {
-    res.render("model.ejs",{ email: null, owner: false, model: model, starred: false })
+    res.render("model.ejs",{ email: null, owner: false, model: model, starred: false, tags: [] })
+  } else { 
+    res.sendStatus(403);
   }
-  else {
-    res.status(403)
+})
+
+app.put('/models/:id', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id")
+  // console.log(req.body);
+  // console.log(req.files);
+
+  if (req.user.models.some(val => val.equals(req.params.id))) {
+    let update = {};
+    if (req.body.title!='') update.title = req.body.title;
+    if (req.body.desc!='') update.desc = req.body.desc;
+    if (req.files!=null) update.poster = req.files.poster;
+    console.log(update)
+    await app.locals.database.collection("models").updateOne({ _id: ObjectId(req.params.id) },{ $set: update });
+  }
+  
+  res.redirect("/models/" + req.params.id);
+})
+app.put('/models/:id/tags/:tags', checkAuthenticated, async (req, res) => {
+  console.log("/models/tags/:tags")
+
+  // Checks user owns model
+  const owns = req.user.models.some(val => val.equals(req.params.id));
+  if (owns) {
+    const tags = req.params.tags.split(",");
+    if(tags[0] == "") tags = [];
+    if(tags.length > 5) {
+      res.sendStatus(400)
+    } else {
+      await app.locals.database.collection("models").updateOne(
+        { _id: ObjectId(req.params.id) },
+        { $set: { tags: tags } }
+      );
+      res.sendStatus(200);
+    }
+  } else {
+    res.sendStatus(403);
   }
 })
 
@@ -335,23 +433,6 @@ app.put('/models/:id/unstar', checkAuthenticated, async (req, res) => {
     }
     res.sendStatus(200);
   }
-})
-
-app.put('/models/:id', checkAuthenticated, async (req, res) => {
-  console.log("/models/:id")
-  // console.log(req.body);
-  // console.log(req.files);
-
-  if (req.user.models.some(val => val.equals(req.params.id))) {
-    let update = {};
-    if (req.body.title!='') update.title = req.body.title;
-    if (req.body.desc!='') update.desc = req.body.desc;
-    if (req.files!=null) update.poster = req.files.poster;
-    console.log(update)
-    await app.locals.database.collection("models").updateOne({ _id: ObjectId(req.params.id) },{ $set: update });
-  }
-  
-  res.redirect("/models/" + req.params.id);
 })
 
 app.post('/models/:id/version', checkAuthenticated, async (req, res) => {

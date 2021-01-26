@@ -50,8 +50,9 @@
 
       <div class="row">
         <h2 class="center-align">Models</h2>
+        <div class="chips chips-initial chips-placeholder chips-autocomplete"></div>
         <div class="row">
-          <div class="grid">
+          <div class="grid" id="model-grid">
             <% for(let i=0;i<models.length; i++) { %>
               <div class="grid-item">
                 <a href="/models/<%= models[i]._id %>">
@@ -82,5 +83,96 @@
     let msnry = new Masonry( elem, {
       itemSelector: '.grid-item'
     });
+    document.addEventListener('DOMContentLoaded', function() {
+      let elems = document.querySelectorAll('.chips');
+
+      const raw = "<%- models.flatMap(x=>x.tags) %>".split(",");
+      let initialTags = [...new Set(raw)].map(x=>{return{tag:x}});
+
+      console.log(initialTags);
+      let instances = M.Chips.init(elems, {
+        data: initialTags,
+        placeholder:"Enter a tag",
+        secondaryPlaceholder:"+Tag",
+        autocompleteOptions: {
+          data: autocompleteTags(),
+          minLength: 2
+        },
+        onChipAdd: (data)=>{
+          //console.log(data[0].M_Chips.chipsData.map(x=>x.tag));
+          getTags(data[0].M_Chips.chipsData.map(x=>x.tag));
+        },
+        onChipDelete: (data)=>{
+          //console.log(data[0].M_Chips.chipsData.map(x=>x.tag));
+          getTags(data[0].M_Chips.chipsData.map(x=>x.tag));
+        }
+      });
+      
+    });
+    function autocompleteTags(tags = "<%- tags %>".split(",")) {
+      let autocompleteTags = {};
+      for(i=0;i<tags.length;i++) {
+        autocompleteTags[tags[i]] = null;
+      }
+      //console.log(autocompleteTags)
+      return autocompleteTags
+    }
+    // TODO Most of the below functions feel very awkward, improve them.
+    function getTags(tags){
+      const route = "/models/tags/"+tags.join(",");
+      //console.log(route);
+
+      let request =  new XMLHttpRequest();
+      request.open("get",route,true);
+      request.onload = function() {
+        const returnData = JSON.parse(request.responseText);
+        //console.log(returnData);
+        setModels(returnData);
+      }
+      request.send();
+    }
+    function setModels(models) {
+      let modelGrid = document.getElementById("model-grid");
+      modelGrid.innerHTML = "";
+      for(i=0;i<models.length;i++) {
+        modelGrid.appendChild(createCard(models[i]))
+      }
+      // Refresh masonry
+      let msnry = new Masonry(document.querySelector('.grid'), {
+        itemSelector: '.grid-item'
+      });
+    }
+    function createCard(model) {
+      let div = document.createElement("div");
+      div.classList.add("grid-item");
+      let a = document.createElement("a");
+      a.setAttribute("href","/models/"+model._id);
+      let card = document.createElement("div");
+      card.classList.add("card");
+
+      const temp2 = "<%- masonry ? '' : 'small' %>"
+      //console.log("temp2:",temp2);
+      if (temp2!='') card.classList.add(temp2);
+      
+
+      let cardImage = document.createElement("div");
+      cardImage.classList.add("card-image");
+      let img = document.createElement("img");
+      img.setAttribute("src","data:image/jpeg;base64,"+model.poster.data.toString("base64"));
+      cardImage.appendChild(img);
+      card.appendChild(cardImage)
+
+      let cardContent = document.createElement("div");
+      cardContent.classList.add("card-content");
+      let cardTitle = document.createElement("span");
+      cardTitle.classList.add("card-title");
+      cardTitle.innerHTML = model.title;
+      cardContent.appendChild(cardTitle);
+      card.appendChild(cardContent)
+      
+      a.appendChild(card);
+      div.appendChild(a);
+      return div;
+    }
   </script>
 </html>
