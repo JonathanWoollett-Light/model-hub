@@ -77,10 +77,9 @@ app.get('/', async (req, res) => {
     { public: true },
   ).project({
     title: true,
-    desc: true,
     "poster.data": true
   }).limit(10).sort({ stars: -1 }).toArray();
-  console.log(models);
+  //console.log(models);
 
   const email = req.isAuthenticated() ? req.user.email : null;
   const masonry = req.isAuthenticated() ? req.user.masonry : true;
@@ -102,21 +101,18 @@ app.get('/user', checkAuthenticated, async (req, res) => {
       { _id: { $in: req.user.models } }
     ).project({
       title: true,
-      desc: true,
       "poster.data": true
     }).toArray(),
     app.locals.database.collection("models").find(
       { _id: { $in: req.user.views } }
     ).project({
       title: true,
-      desc: true,
       "poster.data": true
     }).toArray(),
     app.locals.database.collection("models").find(
       { _id: { $in: req.user.stars } }
     ).project({
       title: true,
-      desc: true,
       "poster.data": true
     }).toArray()
   ]).then((data)=> {
