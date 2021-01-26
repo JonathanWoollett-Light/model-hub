@@ -96,10 +96,7 @@ app.get('/', async (req, res) => {
 
 app.get('/user', checkAuthenticated, async (req, res) => {
   console.log("/user")
-  //console.log(req.user.models.length)
-  // const model_id = ObjectId("600f0ecf5b81751fd09df25f");
-  // const model = await app.locals.database.collection("models").findOne({_id: model_id}).catch((err) => {throw err});
-  // console.log(model.versions[model.versions.length - 1].size);
+
   Promise.all([
     app.locals.database.collection("models").find(
       { _id: { $in: req.user.models } }
@@ -407,7 +404,7 @@ app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
     );
 
     //console.log("2\n",updateResult)
-    // Checks offered user exists
+    // Checks offered user exists//
     if (updateResult.value != null) {
       //console.log("3")
       await app.locals.database.collection("models").updateOne(
@@ -459,6 +456,7 @@ app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
 // TODO throw errror or something for being over limit
 app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/own");
+  
   const model_id = ObjectId(req.params.id);
 
   // Checks model exists and has ownership offer for user
@@ -471,7 +469,7 @@ app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
   
   // sorts out the size things when ownership gets shared
   // this spreads out the size over all the owners
-  const model_size = model.versions[model.versions.length - 1].size;
+  const model_size = model.versions[model.versions.length - 1].file.size;
   const size = model_size + req.user.memory;
   if (size >= 30*1024){
     console.log("throw error or something for being over the limit, user would be overloaded");
