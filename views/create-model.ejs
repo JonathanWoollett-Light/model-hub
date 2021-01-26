@@ -42,6 +42,10 @@
                 <span class="helper-text">Max size 30KB</span>
               </div>
             </div>
+            <div class="chips chips-placeholder chips-autocomplete">
+            </div>
+            <input id="tags" name="tags" hidden/>
+            
             <p><label>
               <input type="checkbox" name="public"/>
               <span>Public</span>
@@ -54,4 +58,32 @@
       </div>
     </div>
   </body>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var elems = document.querySelectorAll('.chips');
+      var instances = M.Chips.init(elems,{
+        placeholder:"Enter a tag",
+        secondaryPlaceholder:"+Tag",
+        limit: 5,
+        autocompleteOptions: {
+          data: autocompleteTags(),
+          minLength: 2
+        },
+        onChipAdd: (data)=>{
+          document.getElementById("tags").value = data[0].M_Chips.chipsData.map(x=>x.tag);
+        },
+        onChipDelete: (data)=>{
+          document.getElementById("tags").value = data[0].M_Chips.chipsData.map(x=>x.tag);
+        }
+      });
+    });
+    function autocompleteTags(tags = "<%- tags %>".split(",")) {
+      let autocompleteTags = {};
+      for(i=0;i<tags.length;i++) {
+        autocompleteTags[tags[i]] = null;
+      }
+      //console.log(autocompleteTags)
+      return autocompleteTags
+    }
+  </script>
 </html>
