@@ -15,7 +15,10 @@
   <body>
     <nav>
       <div class="nav-wrapper">
-        <a href="/" class="brand-logo">model-hub</a>
+        <ul id="nav-mobile" class="left hide-on-med-and-down">
+          <li><a href="/">model-hub</a></li>
+          <li><a href="/about"><i class="material-icons">description</i></a></li>
+        </ul>
         <!-- TODO A better way to display user email? -->
         <a href="/user" class="brand-logo center"><%= email %></a> 
         <ul id="nav-mobile" class="right hide-on-med-and-down">
