@@ -53,7 +53,14 @@
 
       <div class="row">
         <h2 class="center-align">Models</h2>
-        <div class="chips chips-initial chips-placeholder chips-autocomplete"></div>
+        <div class="row">
+          <div class="input-field col s3">
+            <input id="title" type="text" onchange="titleUpdate(this);">
+            <label for="title">Title</label>
+          </div>
+          <div id="tags" class="col s9 chips chips-initial chips-placeholder chips-autocomplete"></div>
+        </div>
+        
         <div class="row">
           <div class="grid" id="model-grid">
             <% for(let i=0;i<models.length; i++) { %>
@@ -82,10 +89,24 @@
     .card { margin: 10px }
   </style>
   <script>
+    // Masonry setup
     let elem = document.querySelector('.grid');
     let msnry = new Masonry( elem, {
       itemSelector: '.grid-item'
     });
+    // Title search update function
+    function titleUpdate(title) {
+      //console.log("title:",title.value);
+      const tagChips = document.querySelectorAll("#tags div");
+
+      const tags = Array.from(tagChips).map((chip)=>{
+        return chip.innerText.split("\n")[0];
+      });
+      //console.log("tags:",tags);
+
+      getModels(title.value,tags);
+    }
+    // Tag search setup
     document.addEventListener('DOMContentLoaded', function() {
       let elems = document.querySelectorAll('.chips');
 
@@ -103,15 +124,17 @@
         },
         onChipAdd: (data)=>{
           //console.log(data[0].M_Chips.chipsData.map(x=>x.tag));
-          getTags(data[0].M_Chips.chipsData.map(x=>x.tag));
+          const title = document.getElementById("title").value;
+          getModels(title,data[0].M_Chips.chipsData.map(x=>x.tag));
         },
         onChipDelete: (data)=>{
           //console.log(data[0].M_Chips.chipsData.map(x=>x.tag));
-          getTags(data[0].M_Chips.chipsData.map(x=>x.tag));
+          const title = document.getElementById("title").value;
+          getModels(title,data[0].M_Chips.chipsData.map(x=>x.tag));
         }
       });
-      
     });
+    // From string creates tags autocomplete object
     function autocompleteTags(tags = "<%- tags %>".split(",")) {
       let autocompleteTags = {};
       for(i=0;i<tags.length;i++) {
@@ -121,9 +144,9 @@
       return autocompleteTags
     }
     // TODO Most of the below functions feel very awkward, improve them.
-    function getTags(tags){
-      const route = "/models/tags/"+tags.join(",");
-      //console.log(route);
+    function getModels(title,tags) {
+      const route = "/models/search/"+title+":"+tags.join(",");
+      console.log(route);
 
       let request =  new XMLHttpRequest();
       request.open("get",route,true);
@@ -134,6 +157,7 @@
       }
       request.send();
     }
+    // Updates displayed model cards
     function setModels(models) {
       let modelGrid = document.getElementById("model-grid");
       modelGrid.innerHTML = "";

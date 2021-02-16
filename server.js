@@ -226,16 +226,18 @@ function checkNotAuthenticated(req, res, next) {
 // Model roots
 //------------------------------------
 
-app.get('/models/tags/:tags', async (req, res) => {
-  console.log("/models/tags/:tags")
+app.get('/models/search/:info', async (req, res) => {
+  console.log("/models/search/:info")
   //console.log(req.params.tags);
 
-  const tags = req.params.tags.split(",");
-  if(tags[0] == "") tags = [];
-  //console.log(tags);
+  const indx = req.params.info.indexOf(":");
+  const title = req.params.info.substr(0,indx);
+  const tags = req.params.info.substr(indx+1).split(",");
+  if(tags[0] == "") tags = []; // TODO Is there a better way to deal with this?
 
   const models = await app.locals.database.collection("models").find({
     public: true,
+    title: { $regex: ".*"+title+".*" },
     tags: { $elemMatch: { $in: tags } } // Where any tag in the model matches any tag in the given tags
   }).project({
     title: true,
