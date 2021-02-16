@@ -102,6 +102,12 @@ app.get('/', async (req, res) => {
   );
 })
 
+app.get('/about', async (req, res) => {
+  console.log("/about")
+  
+  res.render('about.ejs',{email: req.isAuthenticated() ? req.user.email : null});
+})
+
 // User roots
 //------------------------------------
 

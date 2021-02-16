@@ -1,0 +1,44 @@
+<html>
+  <head>
+    <!-- Materialize -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- <model-viewer> -->
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script nomodule src="https://unpkg.com/@google/model-viewer/dist/model-viewer-legacy.js"></script>
+
+    <!-- masonry -->
+    <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
+  </head>
+  <body>
+    <nav>
+      <div class="nav-wrapper">
+        <ul id="nav-mobile" class="left hide-on--and-down">
+          <li><a href="/">model-hub</a></li>
+          <li class="active"><a href="/about"><i class="material-icons">description</i></a></li>
+        </ul>
+        <% if(email!=null) { %>
+          <a href="/user" class="brand-logo center"><%= email %></a>
+          <ul id="nav-mobile" class="right hide-on-med-and-down">
+            <li><a href="/user"><i class="material-icons">home</i></a></li>
+            <li><a href="/logout"><i class="material-icons">exit_to_app</i></a></li>
+          </ul>
+        <% } %>
+      </div>
+    </nav>
+    <div class="container">
+      <div class="row">
+        <h2 class="center-align">About</h2>
+      </div>
+      <div class="row">
+        <p class="flow-text col s10 offset-s1">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque a dignissim sem. Sed sodales massa in enim semper fermentum. Donec sollicitudin porta nulla. Nunc felis purus, dignissim et ullamcorper eget, imperdiet nec eros. Nam pretium neque sed vehicula mattis. Nam dolor turpis, vulputate eu consequat a, eleifend id ante. Quisque sed metus in ipsum ornare venenatis. Curabitur feugiat convallis felis at interdum. Nam elementum fringilla nulla quis elementum. Duis lobortis pharetra blandit. Nulla facilisi. Phasellus lobortis, quam at sollicitudin malesuada, lacus nibh feugiat metus, in rutrum elit diam sit amet ex. Cras consequat diam sit amet velit malesuada rutrum. Morbi elementum tortor dictum quam fermentum maximus. Suspendisse a varius libero.
+            <br><br>
+            Fusce a lacus vulputate, congue nulla et, porttitor elit. Aliquam pharetra diam non felis sollicitudin, id cursus dui volutpat. Vivamus nec velit eget nibh lacinia finibus. Ut magna lectus, porttitor in ipsum vitae, condimentum maximus mauris. Fusce hendrerit mauris urna, eget gravida risus molestie nec. Nam laoreet velit eget libero tempus, sed dignissim enim fermentum. Mauris eu fermentum felis.
+          </p>
+      </div>
+    </div>
+  </body>
+</html>
