@@ -6,59 +6,136 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   </head>
   <body>
+    <nav>
+      <div class="nav-wrapper">
+        <ul id="nav-mobile" class="left hide-on-med-and-down">
+          <li><a href="/">model-hub</a></li>
+          <li><a href="/about"><i class="material-icons">description</i></a></li>
+        </ul>
+        <!-- TODO A better way to display user email? -->
+        <a href="/user" class="brand-logo center"><%= email %></a>
+        <ul id="nav-mobile" class="right hide-on-med-and-down">
+          <li class="active"><a href="/models/create"><i class="material-icons">file_upload</i></a></li>
+          <li><a href="/user"><i class="material-icons">home</i></a></li>
+          <li><a href="/logout"><i class="material-icons">exit_to_app</i></a></li>
+        </ul>
+      </div>
+    </nav>
     <div class="container">
       <div class="row">
         <h2 class="center-align">New model</h2>
       </div>
       <div class="row">
-        <div class="col s6 offset-s3">
-          <!-- class="z-depth-1" -->
-          <form style="padding:10px;" action="/models/create" method="post" enctype="multipart/form-data">
-            <div class="input-field">
-              <input type="text" id="title" name="title" required>
-              <label for="title">Title</label>
-            </div>
-            <div class="input-field">
-              <input type="text" id="desc" name="desc" required>
-              <label for="desc">Description</label>
-            </div>
-            <div class="file-field input-field">
-              <div class="btn">
-                <span>Model</span>
-                <input type="file" name="model">
+        <!-- class="z-depth-1" -->
+        <form style="padding:10px;" action="/models/create" method="post" enctype="multipart/form-data">
+          <div class="row">
+            <div class="col s6">
+              <div class="row z-depth-1 formPart">
+                <h6>Defaults</h6>
+                <hr>
+                <!-- Title -->
+                <div class="input-field">
+                  <input type="text" id="title" name="title" required>
+                  <label for="title">Title</label>
+                </div>
+  
+                <!-- Description -->
+                <div class="input-field">
+                  <input type="text" id="desc" name="desc" required>
+                  <label for="desc">Description</label>
+                </div>
+  
+                <!-- Model -->
+                <div class="file-field input-field">
+                  <div class="btn">
+                    <span>Model</span>
+                    <input type="file" name="model">
+                  </div>
+                  <div class="file-path-wrapper">
+                    <input class="file-path validate" type="text" placeholder=".glb model">
+                  </div>
+                </div>
+  
+                <!-- Poster -->
+                <div class="file-field input-field">
+                  <div class="btn">
+                    <span>Poster</span>
+                    <input type="file" name="poster">
+                  </div>
+                  <div class="file-path-wrapper">
+                    <!-- TODO Validate it's jpeg -->
+                    <input class="file-path validate" type="text" placeholder=".jpeg image">
+                    <span class="helper-text">Max size 30KB</span>
+                  </div>
+                </div>
+                <div class="chips chips-placeholder chips-autocomplete">
+                </div>
+                <input id="tags" name="tags" hidden/>
+  
+                <!-- Public? -->
+                <p><label>
+                  <input type="checkbox" name="public"/>
+                  <span>Public</span>
+                </label></p>
               </div>
-              <div class="file-path-wrapper">
-                <input class="file-path validate" type="text" placeholder=".glb model">
+              <div class="row center-align">
+                <button class="btn-large waves-effect waves-light" type="submit" name="action">Create
+                  <i class="material-icons right">send</i>
+                </button>
               </div>
             </div>
-            <div class="file-field input-field">
-              <div class="btn">
-                <span>Poster</span>
-                <input type="file" name="poster">
-              </div>
-              <div class="file-path-wrapper">
-                <!-- TODO Validate it's jpeg -->
-                <input class="file-path validate" type="text" placeholder=".jpeg image">
-                <span class="helper-text">Max size 30KB</span>
+            <div class="col s6">
+              <!-- Specification -->
+              <div class="z-depth-1 formPart">
+                <h6>Specification</h6>
+                <hr>
+                <table>
+                  <thead>
+                    <tr>
+                      <th width="25%">Keys</th>
+                      <th width="75%">Values</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td width="25%"><input name="key0" type="text" onchange="specChange();"></td>
+                      <td width="75%"><input name="value0" type="text" onchange="specChange();"></td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div class="chips chips-placeholder chips-autocomplete">
-            </div>
-            <input id="tags" name="tags" hidden/>
-            
-            <p><label>
-              <input type="checkbox" name="public"/>
-              <span>Public</span>
-            </label></p>
-            <button class="btn waves-effect waves-light" type="submit" name="action">Create
-              <i class="material-icons right">send</i>
-            </button>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   </body>
+  <style>
+    td { padding: 5px; }
+    .formPart { padding: 15px; }
+    hr { background-color: rgb(184,184,184); height: 1px; border-width: 0px;}
+  </style>
   <script>
+    // Specification
+    function specChange(elem) {
+      const rows = document.querySelectorAll("tbody tr td input");
+      console.log("rows:",rows);
+      const len = rows.length;
+      console.log(rows[len-1].value,rows[len-2].value);
+      if(rows[len-1].value != "" || rows[len-2].value != "") {
+        const start = "<td ";
+        const middle = "><input name='";
+        const end = "' type='text' onchange='specChange()''></td>"
+
+        const idIndex = parseInt(len/2);
+        let newRow = document.createElement("tr");
+        newRow.innerHTML = start+"width='25%'"+middle+"key"+idIndex+end+start+"width=75%"+middle+"value"+idIndex+end;
+
+        document.querySelector("tbody").appendChild(newRow);
+      }
+    }
+
+    // Tags
     document.addEventListener('DOMContentLoaded', function() {
       var elems = document.querySelectorAll('.chips');
       var instances = M.Chips.init(elems,{

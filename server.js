@@ -262,7 +262,7 @@ app.get('/models/create', checkAuthenticated, async (req, res) => {
   //console.log(tags)
   let distinctTags = [...new Set(tags.flatMap(x=>x.tags))];
 
-  res.render('create-model.ejs', { tags: distinctTags })
+  res.render('create-model.ejs', { email: req.user.email, tags: distinctTags })
 })
 
 // TODO Should this be "/models"
@@ -280,6 +280,12 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
     if(tags[0] == "") tags = [];
     // console.log(tags);
 
+    let spec = {}
+    for(let i=0;req.body["key"+i]!=null;i++){
+      if(req.body["key"+i]=="") continue;
+      spec[req.body["key"+i]] = req.body["value"+i];
+    }
+
     const modelId = new ObjectId();
 
     let model = {
@@ -291,7 +297,8 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
       owners: 1,
       public: public,
       awaiting: [],
-      tags: tags
+      tags: tags,
+      spec: spec
     };
     
     if (public) {
@@ -309,13 +316,13 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
       }
     ).catch((err)=>{
       // Presumes error is result of memory being more than max
-      res.redirect('/models/create')
+      res.redirect('/models/create');
     });
     await app.locals.database.collection("models").insertOne(model);
 
-    res.redirect('/models/' + modelId)
+    res.redirect('/models/' + modelId);
   } else {
-    res.redirect('/models/create')
+    res.redirect('/models/create');
   }
   
 })
@@ -391,6 +398,51 @@ app.put('/models/:id/tags/:tags', checkAuthenticated, async (req, res) => {
     res.sendStatus(403);
   }
 })
+app.put('/models/:id/spec/value/:pair', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/spec/value/:pair")
+  // Checks user owns model
+  const owns = req.user.models.some(val => val.equals(req.params.id));
+  if (owns) {
+    const indx = req.params.pair.indexOf(",");
+    const key = req.params.pair.substr(0,indx);
+    const value = req.params.pair.substr(indx+1);
+
+    let set = {};
+    set["spec."+key] = value;
+    // console.log(set);
+
+    await app.locals.database.collection("models").updateOne(
+      { _id: ObjectId(req.params.id) },
+      { $set: set }
+    );
+    res.sendStatus(200);
+  } else {
+    res.sendStatus(403);
+  }
+})
+app.put('/models/:id/spec/key/:pair', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/spec/key/:pair")
+  // Checks user owns model
+  const owns = req.user.models.some(val => val.equals(req.params.id));
+  if (owns) {
+    const indx = req.params.pair.indexOf(",");
+    const oldKey = req.params.pair.substr(0,indx);
+    const newKey = req.params.pair.substr(indx+1);
+
+    let rename = {};
+    rename["spec."+oldKey] = "spec."+newKey;
+    // console.log(rename);
+
+    await app.locals.database.collection("models").updateOne(
+      { _id: ObjectId(req.params.id) },
+      { $rename: rename }
+    );
+    res.sendStatus(200);
+  } else {
+    res.sendStatus(403);
+  }
+})
+
 
 // like
 app.put('/models/:id/star', checkAuthenticated, async (req, res) => {
