@@ -22,6 +22,7 @@
         <% if(email!=null) { %>
           <a href="/user" class="brand-logo center"><%= email %></a>
           <ul id="nav-mobile" class="right hide-on-med-and-down">
+            <li><a href="/models/create"><i class="material-icons">file_upload</i></a></li>
             <li><a href="/user"><i class="material-icons">home</i></a></li>
             <li><a href="/logout"><i class="material-icons">exit_to_app</i></a></li>
           </ul>
@@ -169,6 +170,7 @@
         itemSelector: '.grid-item'
       });
     }
+    // TODO This should probably be done better
     function createCard(model) {
       let div = document.createElement("div");
       div.classList.add("grid-item");
