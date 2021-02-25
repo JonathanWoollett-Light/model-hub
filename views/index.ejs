@@ -111,8 +111,8 @@
     document.addEventListener('DOMContentLoaded', function() {
       let elems = document.querySelectorAll('.chips');
 
-      const raw = "<%- models.flatMap(x=>x.tags) %>".split(",");
-      let initialTags = [...new Set(raw)].map(x=>{return{tag:x}});
+      const raw = "<%- tags %>".split(",");
+      let initialTags = raw.map(x=>{return{tag:x}});
 
       console.log(initialTags);
       let instances = M.Chips.init(elems, {
@@ -136,7 +136,7 @@
       });
     });
     // From string creates tags autocomplete object
-    function autocompleteTags(tags = "<%- tags %>".split(",")) {
+    function autocompleteTags(tags = "<%- topTags %>".split(",")) {
       let autocompleteTags = {};
       for(i=0;i<tags.length;i++) {
         autocompleteTags[tags[i]] = null;
