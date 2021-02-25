@@ -38,7 +38,7 @@
           <div class="chips chips-initial chips-placeholder chips-autocomplete"></div>
         <% } else { %>
           <% for(i=0;i<model.tags.length;i++){ %>
-            <div class="chip"><%= model.tags[i] %></div>
+            <div class="chip"><a href="/landing/<%= model.tags[i] %>"><%= model.tags[i] %></a></div>
           <% } %>
         <% } %>
         <p><%= model.desc %></p>
@@ -284,3 +284,6 @@
     }
   </script>
 </html>
+<style>
+  .chip a { color: inherit; } 
+</style>

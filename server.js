@@ -70,19 +70,9 @@ app.use(upload())
 app.use( express.static( "static" ) );
 
 app.get('/', async (req, res) => {
-  console.log("/")
-  //console.log(req.user.models.length)
+  console.log("/");
 
-  // Gets top 20 starred models
-  let models = await app.locals.database.collection("models").find(
-    { public: true },
-  ).project({
-    title: true,
-    "poster.data": true,
-    tags: true
-  }).limit(20).sort({ stars: -1 }).toArray();
-
-  // Gets all distinct tags on top 100 starred models
+  // Get tags from top 100 models
   const tags = await app.locals.database.collection("models").find(
     { public: true },
   ).project({
@@ -90,15 +80,43 @@ app.get('/', async (req, res) => {
     tags: true
   }).limit(100).sort({ stars: -1 }).toArray();
   //console.log(tags)
-  let distinctTags = [...new Set(tags.flatMap(x=>x.tags))];
+  const distinctTags = [...new Set(tags.flatMap(x=>x.tags))];
   //console.log(distinctTags)
+
+  res.redirect("/landing/"+distinctTags.join(","));
+})
+
+app.get("/landing/:tags", async(req,res) => {
+  console.log("/landing/:tags");
+
+  const tags = req.params.tags.split(",");
+  //console.log("tags:",tags);
+
+  // Gets top 20 models from given tags
+  const models = await app.locals.database.collection("models").find({
+    public: true,
+    tags: { $elemMatch: { $in: tags } } // Where any tag in the model matches any tag in the given tags
+  }).project({
+    title: true,
+    "poster.data": true,
+    tags: true
+  }).limit(20).sort({ stars: -1 }).toArray();
+
+  // Get all tags from top 100 models
+  const topTags = await app.locals.database.collection("models").find(
+    { public: true },
+  ).project({
+    _id: false,
+    tags: true
+  }).limit(100).sort({ stars: -1 }).toArray();
+  const distinctTags = [...new Set(topTags.flatMap(x=>x.tags))];
 
   const email = req.isAuthenticated() ? req.user.email : null;
   const masonry = req.isAuthenticated() ? req.user.masonry : true;
 
   res.render(
     'index.ejs', 
-    { email: email, models: models, masonry: masonry, tags: distinctTags }
+    { email: email, models: models, masonry: masonry, tags: tags, topTags: distinctTags }
   );
 })
 
