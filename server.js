@@ -79,9 +79,9 @@ app.get('/', async (req, res) => {
     _id: false,
     tags: true
   }).limit(100).sort({ stars: -1 }).toArray();
-  //console.log(tags)
+  // console.log(tags)
   const distinctTags = [...new Set(tags.flatMap(x=>x.tags))];
-  //console.log(distinctTags)
+  // console.log(distinctTags)
 
   res.redirect("/landing/"+distinctTags.join(","));
 })
@@ -90,7 +90,6 @@ app.get("/landing/:tags", async(req,res) => {
   console.log("/landing/:tags");
 
   const tags = req.params.tags.split(",");
-  //console.log("tags:",tags);
 
   // Gets top 20 models from given tags
   const models = await app.locals.database.collection("models").find({
@@ -131,53 +130,100 @@ app.get('/about', async (req, res) => {
 
 app.get('/user', checkAuthenticated, async (req, res) => {
   console.log("/user")
-  //console.log(req.user.models.length)
+
   Promise.all([
+    // Models user owns
     app.locals.database.collection("models").find(
       { _id: { $in: req.user.models } }
     ).project({
       title: true,
       "poster.data": true
     }).toArray(),
+    // Models user views
     app.locals.database.collection("models").find(
       { _id: { $in: req.user.views } }
     ).project({
       title: true,
       "poster.data": true
     }).toArray(),
+    // Models user stars
     app.locals.database.collection("models").find(
       { _id: { $in: req.user.stars } }
     ).project({
       title: true,
       "poster.data": true
+    }).toArray(),
+    // Models user has been offered
+    app.locals.database.collection("models").find(
+      { _id: { $in: req.user.offers.map(x=>x.model) } }
+    ).project({
+      title: true,
+      "poster.data": true,
+      size: true
+    }).toArray(),
+    // Groups user has been invited to
+    app.locals.database.collection("groups").find(
+      { _id: { $in: req.user.invites.map(x=>x.group) } }
+    ).project({
+      name: true,
+      models: true
+    }).toArray(),
+    // Groups user owns
+    app.locals.database.collection("groups").find(
+      { _id: { $in: req.user.ownGroups } }
+    ).project({
+      name: true
+    }).toArray(),
+    // Groups user views
+    app.locals.database.collection("groups").find(
+      { _id: { $in: req.user.viewGroups } }
+    ).project({
+      name: true
     }).toArray()
-  ]).then((data)=> {
-    //console.log("finished");
-    //console.log(data);
+  ]).then(async (data)=> {
+    // Get total sizes of all group ownership offers
+    const groupSizes = await Promise.all(data[4].map(async (e,i) => {
+      if (req.user.invites[i].type == "view") return 0;
+
+      const models = await app.locals.database.collection("models").find(
+        { _id: { $in: e.models } },
+      ).project({
+        size: true
+      }).toArray();
+      const groupSize = models.map(x=>x.size).reduce((a,b)=>a+b,0);
+      return groupSize;
+    }));
+    
+
     res.render('user.ejs', { 
       email: req.user.email,
       data: req.user.data,
-      models: data[0],//strippedModels,
-      views: data[1],//strippedViews,
+      models: data[0],
+      views: data[1],
       stars: data[2],
       offers: req.user.offers,
+      offerModels: data[3],
+      invites: req.user.invites,
+      inviteGroups: data[4],
+      groupSizes: groupSizes,
       memory: req.user.memory,
-      masonry: req.user.masonry
+      masonry: req.user.masonry,
+      ownGroups: data[5],
+      viewGroups: data[6]
     });
   });
-  // TODO Use `promise.all` here
 })
 
 app.put('/user/masonry-on', checkAuthenticated, async (req, res) => {
   console.log("/user/masonry-on");
   await app.locals.database.collection("users").updateOne({ _id: req.user._id }, { $set: { masonry: true } });
-  res.sendStatus(200);
+  res.status(200);
   // TODO Use `promise.all` here
 })
 app.put('/user/masonry-off', checkAuthenticated, async (req, res) => {
   console.log("/user/masonry-off");
   await app.locals.database.collection("users").updateOne({ _id: req.user._id }, { $set: { masonry: false } });
-  res.sendStatus(200);
+  res.status(200);
   // TODO Use `promise.all` here
 })
 
@@ -230,8 +276,7 @@ function checkAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {
     return next()
   }
-  //res.status(401)
-  res.redirect('/login')
+  res.redirect('/')
 }
 
 function checkNotAuthenticated(req, res, next) {
@@ -240,6 +285,288 @@ function checkNotAuthenticated(req, res, next) {
   }
   next() // TODO Should this be a `return`?
 }
+
+// Group roots
+//------------------------------------
+
+app.get('/groups/create', checkAuthenticated, async (req, res) => {
+  console.log("/groups/create");
+
+  res.render('create-group.ejs', { email: req.user.email });
+})
+
+app.post('/groups/create', checkAuthenticated, async (req, res) => {
+  console.log("/groups/create");
+
+  const id = new ObjectId();
+  let group = {
+    _id: id,
+    name: req.body.name,
+    desc: req.body.desc,
+    owners: [req.user._id],
+    viewers: [],
+    models: []
+  };
+
+  await Promise.all([
+    app.locals.database.collection("groups").insertOne(group),
+    app.locals.database.collection("users").updateOne(
+      { _id: req.user._id },
+      { $push: { ownGroups: id } }  
+    )
+  ]);
+
+  res.redirect("/groups/"+id);
+})
+
+app.get('/groups/:id', checkAuthenticated, async (req, res) => {
+  console.log("/groups/:id")
+  
+  const group = await app.locals.database.collection("groups").findOne({ _id: ObjectId(req.params.id) });
+  if (group==null) res.status(403);
+  else {
+    const owns = group.owners.some(val => val.equals(req.user._id));
+    const views = group.viewers.some(val => val.equals(req.user._id));
+    if(owns || views){
+      const models = await app.locals.database.collection("models").find(
+        { _id: { $in: group.models } }
+      ).project({
+        title: true,
+        "poster.data": true
+      }).toArray();
+
+      group.models = models;
+      
+      res.render("group.ejs", { email: req.user.email, owns: owns, group: group, masonry: req.user.masonry })
+    }
+  }
+})
+
+app.put("/groups/:id/shareOwnership", checkAuthenticated, async (req, res) => {
+  console.log("/groups/:id/shareOwnership");
+  const groupId = ObjectId(req.params.id);
+
+  // Checks inviting user exists and has ownership of group
+  const owner = await app.locals.database.collection("users").findOne({
+    _id: req.user._id,
+    ownGroups: groupId
+  });
+
+  if (owner != null) {
+    // Check invited user exists
+    const user = await app.locals.database.collection("users").findOne({ email: req.body.email });
+    if(user != null) {
+      // Check invited user doesn't already own group
+      const owns = user.ownGroups.some(val => val.equals(req.params.id));
+      if (!owns) {
+        // `$addToSet` here prevents duplicating invites
+        await Promise.all([
+          // Add awaiting to group
+          app.locals.database.collection("groups").updateOne(
+            { _id: groupId },
+            { $addToSet: { awaiting: { type: "own", for: user._id }}}
+          ),
+          // Add invite to user
+          app.locals.database.collection("users").updateOne(
+            { _id: user._id },
+            { $addToSet: { invites: { group: groupId, type: "own", from: req.user._id } } }
+          )
+        ]);
+      }
+    }
+  }
+  res.redirect("/groups/" + req.params.id)
+})
+app.put("/groups/:id/share", checkAuthenticated, async (req, res) => {
+  console.log("/groups/:id/share");
+  const groupId = ObjectId(req.params.id);
+
+  // Checks inviting user exists and has ownership of group
+  const owner = await app.locals.database.collection("users").findOne({
+    _id: req.user._id,
+    ownGroups: groupId
+  });
+
+  if (owner != null) {
+    // Check invited user exists
+    const user = await app.locals.database.collection("users").findOne({ email: req.body.email });
+    if(user != null) {
+      // Check invited user doesn't already view group
+      const views = user.viewGroups.some(val => val.equals(req.params.id))
+      if (!views) {
+        await Promise.all([
+          app.locals.database.collection("groups").updateOne(
+            { _id: groupId },
+            { $addToSet: { awaiting: { type: "view", for: user._id }}}
+          ),
+          app.locals.database.collection("users").updateOne(
+            { _id: user._id },
+            { $addToSet: { invites: { group: groupId, type: "view", from: req.user._id } } }
+          )
+        ]);
+      }
+    }
+  }
+  res.redirect("/groups/" + req.params.id)
+})
+
+// Needs to be `get` so can be called from `<a>`
+app.get("/groups/:id/own/accept", checkAuthenticated, async (req, res) => {
+  console.log("/groups/:id/own/accept");
+  const groupId = ObjectId(req.params.id);
+
+  // Checks group exists and has ownership invite for user
+  const group = await app.locals.database.collection("groups").find({
+    _id: groupId,
+    awaiting: { $elemMatch: { type: "own", for: req.user._id}}
+  }).limit(1).project({
+    models: true
+  }).toArray();
+
+  if (group.length != 0) {
+    const models = await app.locals.database.collection("models").find(
+      { _id: { $in: group[0].models } },
+    ).project({
+      size: true
+    }).toArray();
+    const groupSize = models.map(x=>x.size).reduce((a,b)=>a+b,0);
+
+    // We can use `$push` over `$addToSet` as when an invite is sent it checks they do 
+    //  not already have it.
+    //
+    // For Adding models in the group to the user, a user may already own some models,
+    //  thus we need `$addToSet`.
+    await Promise.all([
+      // Remove awaiting from group, push user as owner
+      app.locals.database.collection("groups").updateOne(
+        { _id: groupId },
+        {
+          $push: { owners: req.user._id },
+          $pull: { awaiting: { type: "own", for: req.user._id} }
+        }
+      ),
+      // Remove invite from user, push all models in group to user, increment user memory by total model size
+      app.locals.database.collection("users").updateOne(
+        { _id: req.user._id },
+        {
+          $addToSet: { models: { $each: group[0].models } },
+          $pull: { invites: { group: groupId } },
+          $inc: { memory: groupSize }
+        }
+      ),
+      // For all models in group, increment owners by 1
+      app.locals.database.collection("models").updateMany(
+        { _id: { $in: group[0].models } },
+        { $inc: { owners: 1 } }
+      )
+    ]);
+  }
+
+  res.redirect("/user");
+})
+// Needs to be `get` so can be called from `<a>`
+app.get("/groups/:id/own/decline", checkAuthenticated, async (req, res) => {
+  console.log("/groups/:id/own/decline");
+  const groupId = ObjectId(req.params.id);
+
+  // Checks group exists and has ownership invite for user
+  const group = await app.locals.database.collection("groups").countDocuments(
+    {
+      _id: groupId,
+      awaiting: { $elemMatch: { type: "own", for: req.user._id}}
+    },
+    limit = 1
+  );
+
+  if (group != 0) {
+    await Promise.all([
+      // Removes awaiting from group
+      app.locals.database.collection("groups").updateOne(
+        { _id: groupId },
+        { $pull: { awaiting: { type: "own", for: req.user._id} } }
+      ),
+      // Removes invite from user
+      app.locals.database.collection("users").updateOne(
+        { _id: req.user._id },
+        { $pull: { invites: { group: groupId } } }
+      )
+    ]);
+  }
+
+  res.redirect("/user");
+})
+// Needs to be `get` so can be called from `<a>`
+app.get("/groups/:id/view/accept", checkAuthenticated, async (req, res) => {
+  console.log("/groups/:id/view/accept");
+  const groupId = ObjectId(req.params.id);
+
+  // Checks group exists and has viewership invite for user
+  const group = await app.locals.database.collection("groups").find({
+    _id: groupId,
+    awaiting: { $elemMatch: { type: "view", for: req.user._id}}
+  }).limit(1).project({
+    models: true
+  }).toArray();
+
+  if (group.length != 0) {
+    // We can use `$push` over `$addToSet` as when an invite is sent it checks they do 
+    //  not already have it.
+    //
+    // For Adding models in the group to the user, a user may already view some models,
+    //  thus we need `$addToSet`.
+    await Promise.all([
+      // Remove awaiting from group, push user as viewer
+      app.locals.database.collection("groups").updateOne(
+        { _id: groupId },
+        {
+          $push: { owners: req.user._id },
+          $pull: { awaiting: { type: "view", for: req.user._id} }
+        }
+      ),
+      // Remove invite from user, push all models in group to user
+      app.locals.database.collection("users").updateOne(
+        { _id: req.user._id },
+        {
+          $addToSet: { views: { $each: group[0].models } },
+          $pull: { invites: { group: groupId }}
+        }
+      )
+    ]);
+  }
+
+  res.redirect("/user");
+})
+// Needs to be `get` so can be called from `<a>`
+app.get("/groups/:id/view/decline", checkAuthenticated, async (req, res) => {
+  console.log("/groups/:id/own/decline");
+  const groupId = ObjectId(req.params.id);
+
+  // Checks group exists which has viewership invite for user
+  const group = await app.locals.database.collection("groups").countDocuments(
+    {
+      _id: groupId,
+      awaiting: { $elemMatch: { type: "view", for: req.user._id}}
+    },
+    limit = 1
+  );
+
+  if (group != 0) {
+    await Promise.all([
+      // Removes awaiting from group
+      app.locals.database.collection("groups").updateOne(
+        { _id: groupId },
+        { $pull: { awaiting: { type: "view", for: req.user._id} } }
+      ),
+      // Removes invite from user
+      app.locals.database.collection("users").updateOne(
+        { _id: req.user._id },
+        { $pull: { invites: { group: groupId } } }
+      )
+    ]);
+  }
+
+  res.redirect("/user");
+})
 
 // Model roots
 //------------------------------------
@@ -268,44 +595,51 @@ app.get('/models/search/:info', async (req, res) => {
 })
 
 app.get('/models/create', checkAuthenticated, async (req, res) => {
-  console.log("/models/create")
+  console.log("/models/create");
 
-  // Tags used in top 100 models for autocomplete
-  const tags = await app.locals.database.collection("models").find(
-    { public: true },
-  ).project({
-    _id: false,
-    tags: true
-  }).limit(100).sort({ stars: -1 }).toArray();
-  //console.log(tags)
-  let distinctTags = [...new Set(tags.flatMap(x=>x.tags))];
+  Promise.all([
+    app.locals.database.collection("models").find(
+      { public: true },
+    ).project({
+      _id: false,
+      tags: true
+    }).limit(100).sort({ stars: -1 }).toArray(),
 
-  res.render('create-model.ejs', { email: req.user.email, tags: distinctTags })
+    app.locals.database.collection("groups").find(
+      { _id: { $in: req.user.ownGroups } }
+    ).project({
+      name: true
+    }).toArray()
+    
+  ]).then((data)=>{
+    let distinctTags = [...new Set(data[0].flatMap(x=>x.tags))];
+
+    res.render('create-model.ejs', { email: req.user.email, tags: distinctTags, groups: data[1] })
+  });
 })
 
 // TODO Should this be "/models"
 app.post('/models/create', checkAuthenticated, async (req, res) => {
   console.log("/models/create");
-  // console.log(typeof req.body.public, req.body.public);
-  // console.log(req.body)
 
   const size = req.files.poster.size + req.files.model.size;
   if (req.files.poster.size < 30*1024) {
     // console.log(req.files)
     const public = req.body.public=="on";
     
+    // Get tags
     let tags = req.body.tags.split(",");
     if(tags[0] == "") tags = [];
-    // console.log(tags);
 
+    // Construct specification map
     let spec = {}
     for(let i=0;req.body["key"+i]!=null;i++){
       if(req.body["key"+i]=="") continue;
       spec[req.body["key"+i]] = req.body["value"+i];
     }
 
+    // Create model object
     const modelId = new ObjectId();
-
     let model = {
       _id: modelId,
       title: req.body.title,
@@ -316,9 +650,11 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
       public: public,
       awaiting: [],
       tags: tags,
-      spec: spec
+      spec: spec,
+      size: size
     };
     
+    // Add public/private respective fields
     if (public) {
       model.stars = 0;
       model.followers = [];
@@ -326,23 +662,54 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
       model.viewers = []
     };
 
+    // Add model to user, increment model size. 
+    // MongoDB has validation requiring `memory` be less than some value, 
+    //  thus if it increments to being over this operation will throw an error.
     await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
-      { 
+      {
         $push: { models: modelId },
         $inc: { memory: size }
       }
     ).catch((err)=>{
-      // Presumes error is result of memory being more than max
-      res.redirect('/models/create');
+      // Presume error is result of memory being more than max
+      res.redirect('/models/create'); // TODO Does this actually end this function?
     });
-    await app.locals.database.collection("models").insertOne(model);
+
+    // Set group Ids
+    const groupArray = Array.isArray(req.body.groups) ? req.body.groups : [req.body.groups];
+    const groupIds = groupArray.map(x => new ObjectId(x));
+
+    await Promise.all([
+      // Insert model
+      app.locals.database.collection("models").insertOne(model),
+      // Add model to all given groups
+      app.locals.database.collection("groups").updateMany(
+        { _id: { $in: groupIds } },
+        { $push: { models: modelId } }
+      ),
+      // Excluding this user: Add model ownership to all owners of given groups, increment all owners of given groups by model size
+      app.locals.database.collection("users").updateMany(
+        { 
+          ownGroups: { $in: groupIds }, 
+          _id: { $ne: req.user_id } 
+        },
+        { 
+          $addToSet: { models: modelId },
+          $inc: { memory: size }
+        },
+      ),
+      // Add model viewership to all viewer of given groups
+      app.locals.database.collection("users").updateMany(
+        { viewGroups: { $in: groupIds } },
+        { $addToSet: { views: modelId } }
+      )
+    ]);
 
     res.redirect('/models/' + modelId);
   } else {
     res.redirect('/models/create');
   }
-  
 })
 
 // TODO Make this nicer
@@ -369,13 +736,13 @@ app.get('/models/:id', async (req, res) => {
     if (model.public || owns || views) {
       res.render("model.ejs", { email: req.user.email, owner: owns, model: model, starred: starred, tags: distinctTags })
     } else {
-      res.sendStatus(403);
+      res.status(403);
     }
   }
   else if(model.public) {
     res.render("model.ejs",{ email: null, owner: false, model: model, starred: false, tags: [] })
   } else { 
-    res.sendStatus(403);
+    res.status(403);
   }
 })
 
@@ -404,16 +771,16 @@ app.put('/models/:id/tags/:tags', checkAuthenticated, async (req, res) => {
     const tags = req.params.tags.split(",");
     if(tags[0] == "") tags = [];
     if(tags.length > 5) {
-      res.sendStatus(400)
+      res.status(400)
     } else {
       await app.locals.database.collection("models").updateOne(
         { _id: ObjectId(req.params.id) },
         { $set: { tags: tags } }
       );
-      res.sendStatus(200);
+      res.status(200);
     }
   } else {
-    res.sendStatus(403);
+    res.status(403);
   }
 })
 app.put('/models/:id/spec/value/:pair', checkAuthenticated, async (req, res) => {
@@ -433,9 +800,9 @@ app.put('/models/:id/spec/value/:pair', checkAuthenticated, async (req, res) => 
       { _id: ObjectId(req.params.id) },
       { $set: set }
     );
-    res.sendStatus(200);
+    res.status(200);
   } else {
-    res.sendStatus(403);
+    res.status(403);
   }
 })
 app.put('/models/:id/spec/key/:pair', checkAuthenticated, async (req, res) => {
@@ -455,9 +822,9 @@ app.put('/models/:id/spec/key/:pair', checkAuthenticated, async (req, res) => {
       { _id: ObjectId(req.params.id) },
       { $rename: rename }
     );
-    res.sendStatus(200);
+    res.status(200);
   } else {
-    res.sendStatus(403);
+    res.status(403);
   }
 })
 
@@ -484,7 +851,7 @@ app.put('/models/:id/star', checkAuthenticated, async (req, res) => {
         { $inc: { stars: 1 }, $push: { followers: req.user._id } }
       );
     }
-    res.sendStatus(200);
+    res.status(200);
   }
 })
 // un-like
@@ -509,209 +876,304 @@ app.put('/models/:id/unstar', checkAuthenticated, async (req, res) => {
         { $inc: { stars: -1 }, $pull: { followers: req.user._id } }
       );
     }
-    res.sendStatus(200);
+    res.status(200);
   }
 })
 
 app.post('/models/:id/version', checkAuthenticated, async (req, res) => {
   console.log("/models/:id")
-  const model_id = ObjectId(req.params.id);
+  const modelId = ObjectId(req.params.id);
 
-  // Checks user has ownership of model
-  const owner = await app.locals.database.collection("users").findOne({
-    _id: req.user._id,
-    models: model_id
-  }).catch((err)=>{throw err})
+  // Check user owns model
+  const owns = req.user.models.some(val => val.equals(req.params.id));
 
-  if (owner != null) {
-    await app.locals.database.collection("users").updateOne(
-      { _id: req.user._id },
-      { $inc: { memory: req.files.file.size } }
-    ).catch((err) => {
-      res.redirect("/models/" + req.params.id);
-    });
-    await app.locals.database.collection("models").updateOne(
-      { _id: model_id},
-      { $push: { versions: { file: req.files.file, date: new Date(), desc: req.body.desc }}}
-    );
-    res.redirect("/models/" + req.params.id);
+  if (owns) {
+    await Promise.all([
+      // Increment user memory by size of new version
+      app.locals.database.collection("users").updateOne(
+        { _id: req.user._id },
+        { $inc: { memory: req.files.file.size } }
+      ),
+      // Add new version to model, increment size of model by size of new version
+      app.locals.database.collection("models").updateOne(
+        { _id: modelId},
+        { $push: { versions: { file: req.files.file, date: new Date(), desc: req.body.desc } } },
+        { $inc: { size: req.files.file.size } }
+      )
+    ]);
   }
-  res.status(403);
+  res.redirect("/models/" + req.params.id);
 })
 
-// TODO Prevents redundant offers (being offered viewership of model they can already view etc.)
 app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/shareOwnership");
-  const model_id = ObjectId(req.params.id);
-  //const user_id = ObjectId(req.body.id)
+  const modelId = ObjectId(req.params.id);
 
-  // Checks offering user has ownership of model
-  const owner = await app.locals.database.collection("users").findOne({
-    _id: req.user._id,
-    models: model_id
-  }).catch((err)=>{throw err})
+  // Checks offering user exists and has ownership of model
+  const owner = await app.locals.database.collection("users").countDocuments(
+    {
+      _id: req.user._id,
+      models: modelId
+    },
+    limit = 1
+  );
 
-  //console.log("1\n",owner)
-  if (owner != null) {
-    const updateResult = await app.locals.database.collection("users").findOneAndUpdate(
-      { email: req.body.email},
-      { $addToSet: { offers: { model: model_id, type: "own", from: req.user._id }}}
-    );
-
-    //console.log("2\n",updateResult)
-    // Checks offered user exists
-    if (updateResult.value != null) {
-      //console.log("3")
-      await app.locals.database.collection("models").updateOne(
-        { _id: model_id},
-        { $addToSet: { awaiting: { type: "own", for: updateResult.value._id }}}
-      );
+  if (owner != 0) {
+    // Check offered user exists
+    const user = await app.locals.database.collection("users").findOne({ email: req.body.email });
+    if (user != null) {
+      // Check offered user doesn't already own model
+      const owns = user.models.some(val => val.equals(req.params.id));
+      if (!owns) {
+        // `$addToSet` here prevents duplicating offers
+        await Promise.all([
+          // Add awaiting to model
+          app.locals.database.collection("models").updateOne(
+            { _id: modelId },
+            { $addToSet: { awaiting: { type: "own", for: user._id }}}
+          ),
+          // Add offer to user
+          app.locals.database.collection("users").updateOne(
+            { _id: user._id },
+            { $addToSet: { offers: { model: modelId, type: "own", from: req.user._id } } }
+          )
+        ]);
+      }
     }
   }
-  console.log("4")
-  res.redirect("/models/" + req.params.id)
+  res.redirect("/models/" + req.params.id);
 })
-
 app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/share");
-  const model_id = ObjectId(req.params.id);
-  //const user_id = ObjectId(req.body.id)
+  const modelId = ObjectId(req.params.id);
 
-  // Checks offering user has ownership of model
-  const owner = await app.locals.database.collection("users").findOne({
-    _id: req.user._id,
-    models: model_id
-  });
+  // Checks offering user exists and has ownership of model
+  const owner = await app.locals.database.collection("users").countDocuments(
+    {
+      _id: req.user._id,
+      models: modelId
+    },
+    limit = 1
+  );
 
-  if (owner==null) res.sendStatus(403);
-  // If user exists
-  const user = await app.locals.database.collection("users").findOne({ email: req.body.email });
-  if (user != null) {
-    // If user doesn't already view the model
-    const contains = user.views.some(val => val.equals(req.params.id))
-    if(!contains) {
-      await Promise.all([
-        app.locals.database.collection("models").updateOne(
-          { _id: model_id},
-          { $addToSet: { awaiting: { type: "view", for: user._id }}}
-        ),
-        app.locals.database.collection("users").updateOne(
-          { _id: user._id },
-          { $addToSet: { offers: { model: model_id, type: "view", from: req.user._id } } }
-        )
-      ]);
+  if (owner != 0) {
+    // Check offered user exists
+    const user = await app.locals.database.collection("users").findOne({ email: req.body.email });
+    if (user != null) {
+      // Check offered user doesn't already view model
+      const owns = user.views.some(val => val.equals(req.params.id));
+      if (!owns) {
+        // `$addToSet` here prevents duplicating offers
+        await Promise.all([
+          // Add awaiting to model
+          app.locals.database.collection("models").updateOne(
+            { _id: modelId },
+            { $addToSet: { awaiting: { type: "view", for: user._id }}}
+          ),
+          // Add offer to user
+          app.locals.database.collection("users").updateOne(
+            { _id: user._id },
+            { $addToSet: { offers: { model: modelId, type: "view", from: req.user._id } } }
+          )
+        ]);
+      }
     }
   }
-  res.redirect("/models/" + req.params.id)
+  res.redirect("/models/" + req.params.id);
 })
 
-app.put('/models/:id/own', checkAuthenticated, async (req, res) => {
-  console.log("/models/:id/own");
-  const model_id = ObjectId(req.params.id);
+// Needs to be `get` so can be called from `<a>`
+app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/own/accept");
+  const modelId = ObjectId(req.params.id);
 
-  // Checks model exists and has ownership offer for user
-  const model = await app.locals.database.collection("models").findOne({
-    _id: model_id,
+  // Checks model exists which has ownership offer for user
+  const model = await app.locals.database.collection("models").find({
+    _id: modelId,
     awaiting: { $elemMatch: { type: "own", for: req.user._id}}
-  }).catch((err) => {throw err});
+  }).limit(1).project({
+    size: true
+  }).toArray();
 
-  if (model==null) res.status(403);
+  if (model.length != 0) {
+    // We can use `$push` over `$addToSet` as when an offer is sent it checks they do 
+    //  not already have it.
+    await Promise.all([
+      // Remove awaiting from model, increment owners by 1
+      app.locals.database.collection("models").updateOne(
+        { _id: modelId },
+        {
+          $inc: { owners: 1},
+          $pull: { awaiting: { type: "own", for: req.user._id} }
+        }
+      ),
+      // Remove offer from user, push model, increment user memory
+      app.locals.database.collection("users").updateOne(
+        { _id: req.user._id },
+        {
+          $push: { models: modelId },
+          $pull: { offers: { model: modelId } },
+          $inc: { memory: model[0].size }
+        }
+      ),
+    ]);
+  }
 
-  await Promise.all([
-    app.locals.database.collection("models").updateOne(
-      {_id: model_id},
-      {
-        $inc: { owners: 1},
-        $pull: { awaiting: { type: "own", for: req.user._id} }
-      }
-    ),
-    app.locals.database.collection("users").updateOne(
-      {_id: req.user._id},
-      {
-        $push: { models: model_id },
-        $pull: { offers: { model: model_id }}
-      }
-    ),
-  ]).catch((err)=> { throw err });
-  
-  res.redirect("/user")
+  res.redirect("/user");
 })
+// Needs to be `get` so can be called from `<a>`
+app.get('/models/:id/own/decline', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/own/decline");
+  const modelId = ObjectId(req.params.id);
 
-app.put('/models/:id/view', checkAuthenticated, async (req, res) => {
-  console.log("/models/:id/view");
-  const model_id = ObjectId(req.params.id);
-
-  // Checks model exists and has offer to be pulled
-  const update = await app.locals.database.collection("models").updateOne(
-    { _id: model_id },
-    { $pull: { awaiting: { type: "view", for: req.user._id} } }
+  // Checks model exists which has ownership offer for user
+  const model = await app.locals.database.collection("models").countDocuments(
+    {
+      _id: modelId,
+      awaiting: { $elemMatch: { type: "view", for: req.user._id}}
+    },
+    limit = 1
   );
-  
-  if (update.modifiedCount == 0) res.sendStatus(403);
-  // If found and modified `update.modifiedCount!=0` then model exists and did have offer
 
-  // The `$push`s here do not need to be `$addToSet` as a user cannot have an offer to view 
-  //  something they already view.
-  await Promise.all([
-    // TODO Combine this with earlier "models" update
-    app.locals.database.collection("models").updateOne(
-      { _id: model_id },
-      { $push: { viewers: req.user._id } }
-    ),
-    app.locals.database.collection("users").updateOne(
-      { _id: req.user._id },
-      {
-        $push: { views: model_id },
-        $pull: { offers: { model: model_id }}
-      }
-    )
-  ])
+  if (model != 0) {
+    await Promise.all([
+      // Removes awaiting from model
+      app.locals.database.collection("models").updateOne(
+        { _id: modelId },
+        { $pull: { awaiting: { type: "own", for: req.user._id } } }
+      ),
+      // Removes offer from user
+      app.locals.database.collection("users").updateOne(
+        { _id: req.user._id },
+        { $pull: { offers: { model: modelId } } }
+      )
+    ]);
+  }
   
-  res.redirect("/user")
+  res.redirect("/user");
+})
+// Needs to be `get` so can be called from `<a>`
+app.get('/models/:id/view/accept', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/view/accept");
+  const modelId = ObjectId(req.params.id);
+
+  // Checks model exists which has viewership offer for user
+  const model = await app.locals.database.collection("models").countDocuments(
+    {
+      _id: modelId,
+      awaiting: { $elemMatch: { type: "view", for: req.user._id}}
+    },
+    limit = 1
+  );
+
+  if (model != 0) {
+    // We can use `$push` over `$addToSet` as when an offer is sent it checks they do 
+    //  not already have it.
+    await Promise.all([
+      // Remove awaiting from model
+      app.locals.database.collection("models").updateOne(
+        { _id: modelId },
+        { $pull: { awaiting: { type: "view", for: req.user._id} } }
+      ),
+      // Remove offer from user, push model
+      app.locals.database.collection("users").updateOne(
+        { _id: req.user._id },
+        {
+          $push: { views: modelId },
+          $pull: { offers: { model: modelId }}
+        }
+      ),
+    ]);
+  }
+
+  res.redirect("/user");
+})
+// Needs to be `get` so can be called from `<a>`
+app.get('/models/:id/view/decline', checkAuthenticated, async (req, res) => {
+  console.log("/models/:id/view/decline");
+  const modelId = ObjectId(req.params.id);
+
+  // Checks model exists which has viewership offer for user
+  const model = await app.locals.database.collection("models").countDocuments(
+    {
+      _id: modelId,
+      awaiting: { $elemMatch: { type: "view", for: req.user._id}}
+    },
+    limit = 1
+  );
+
+  if (model != 0) {
+    await Promise.all([
+      // Removes awaiting from model
+      app.locals.database.collection("models").updateOne(
+        { _id: modelId },
+        { $pull: { awaiting: { type: "view", for: req.user._id } } }
+      ),
+      // Removes offer from user
+      app.locals.database.collection("users").updateOne(
+        { _id: req.user._id },
+        { $pull: { offers: { model: modelId } } }
+      )
+    ]);
+  }
+  
+  res.redirect("/user");
 })
 
 // TODO Delete all hanging offer if model gets deleted
 app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/disown");
-  const model_id = ObjectId(req.params.id);
+  const modelId = ObjectId(req.params.id);
 
-  // Removes user ownership
-  const user = await app.locals.database.collection("users").updateOne(
-    { _id: req.user._id },
-    { $pull: { models: model_id } }
-  );
+  // Check user owns model
+  const owns = req.user.models.some(val => val.equals(req.params.id));
 
-  // Checks update was made in removing user ownership (in affect checks user did own model)
-  if (user.modifiedCount == 1) {
+  if (owns) {
     // Decrease owner count
     const model = await app.locals.database.collection("models").findOneAndUpdate(
-      {_id: model_id},
+      {_id: modelId},
       { $inc: {owners: -1}}
+    );
+
+    // Removes user ownership
+    await app.locals.database.collection("users").updateOne(
+      { _id: req.user._id },
+      { 
+        $pull: { models: modelId },
+        $inc: { memory: -model.value.size }
+      }
     );
 
     // If owners equalled 1 before the change, it equals 0 now, therefore delete
     if (model.value.owners == 1) {
       await Promise.all([
         // Delete model
-        app.locals.database.collection("models").deleteOne(({_id: model_id})),
+        app.locals.database.collection("models").deleteOne(
+          { _id: modelId }
+        ),
         // Deletes offers
         app.locals.database.collection("users").updateMany(
           { _id: { $in: model.value.awaiting.map(x=>x.for) } },
-          { $pull: { offers: { model: model_id } } }
+          { $pull: { offers: { model: modelId } } }
+        ),
+        // Remove model from all groups
+        app.locals.database.collection("groups").updateMany(
+          { models: modelId },
+          { $pull: { models: modelId } }
         )
       ]);
       if(model.value.public) {
         // Deletes stars
         await app.locals.database.collection("users").update(
-          {_id: { $in: model.value.followers } },
-          { $pull: { stars: model_id } }
+          { _id: { $in: model.value.followers } },
+          { $pull: { stars: modelId } }
         )
       }
       else {
         // Delete views
         await app.locals.database.collection("users").updateMany(
           { _id: { $in: model.value.viewers } },
-          { $pull: { views: model_id } }
+          { $pull: { views: modelId } }
         );
       }
     }
