@@ -22,6 +22,7 @@
         <!-- TODO A better way to display user email? -->
         <a href="/user" class="brand-logo center"><%= email %></a> 
         <ul id="nav-mobile" class="right hide-on-med-and-down">
+          <li><a href="/groups/create"><i class="material-icons">group_add</i></a></li>
           <li><a href="/models/create"><i class="material-icons">file_upload</i></a></li>
           <li class="active"><a href="/user"><i class="material-icons">home</i></a></li>
           <li><a href="/logout"><i class="material-icons">exit_to_app</i></a></li>
@@ -37,20 +38,6 @@
           <p class="center-align"><%= Math.ceil(memory / (1024*1024)) %>mb / <%= 100 %>mb</p>
         </div>
       </div>
-      <% if(offers.length > 0) { %>
-        <div class="row">
-          <h4 class="center-align">Offers</h4>
-          <ul>
-            <% for(let i=0;i<offers.length;i++){ %>
-              <li>
-                <%= offers[i].from %>:<%= offers[i].type %>
-                <form action="/models/<%= offers[i].model %>/<%= offers[i].type %>?_method=PUT" method="post">
-                  <button type="submit">Accept</button>
-                </form></li>
-            <% } %>
-          </ul>
-        </div>
-      <% } %>
       <div class="row">
         <div class="switch center-align">
           <label>
@@ -61,6 +48,68 @@
           </label>
         </div>
       </div>
+      <% if(ownGroups.length + viewGroups.length > 0) { %>
+        <div class="row">
+          <div class="col s4 offset-s4">
+            <div class="collection">
+              <% for(let i=0;i<ownGroups.length;++i){ %>
+                <a href="groups/<%= ownGroups[i]._id %>" class="collection-item"><%= ownGroups[i].name %></a>
+              <% } %>
+              <% for(let i=0;i<viewGroups.length;++i){ %>
+                <a href="groups/<%= viewGroups[i]._id %>" class="collection-item"><%= viewGroups[i].name %></a>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      <% } %>
+      <% if(offers.length + invites.length > 0) { %>
+        <div class="row">
+          <ul class="collection with-header col s4 offset-s4">
+            <li class="collection-header"><h5>Offers</h5></li>
+            <% for(let i=0;i<offers.length;i++){ %>
+              <li class="collection-item avatar">
+                <img src="data:image/jpeg;base64,<%= offerModels[i].poster.data.buffer.toString('base64') %>" class="circle">
+                <span class="title"><%= offerModels[i].title %></span>
+                <p>To: <i><%= offers[i].type %></i>
+                  <% if(offers[i].type=="own"){ %>
+                    <br> 
+                    <%= Math.ceil(offerModels[i].size / (1024*1024)) %>mb  
+                  <% } %></p>
+                </p>
+                <span class="secondary-content">
+                  <!-- TODO Which design best? -->
+                  <!-- <a href="/models/<%= offers[i].model %>/<%= offers[i].type %>/decline"><i class="material-icons">clear</i></a>
+                  <a href="/models/<%= offers[i].model %>/<%= offers[i].type %>/accept"><i class="material-icons">check</i></a> -->
+                  <a class="btn-floating btn-small waves-effect waves-light"
+                    href="/models/<%= offers[i].model %>/<%= offers[i].type %>/decline"
+                  ><i class="material-icons">clear</i></a>
+                  <a class="btn-floating btn-small waves-effect waves-light"
+                    href="/models/<%= offers[i].model %>/<%= offers[i].type %>/accept"
+                  ><i class="material-icons">check</i></a>
+                </span>
+              </li>
+            <% } %>
+            <% for(let i=0;i<invites.length;i++){ %>
+              <li class="collection-item avatar">
+                <span class="title"><%= inviteGroups[i].name %></span>
+                <p>To: <i><%= invites[i].type %></i>
+                  <% if(invites[i].type=="own"){ %>
+                    <br>
+                    <%= Math.ceil(groupSizes[i] / (1024*1024)) %>mb  
+                  <% } %></p>
+                <span class="secondary-content">
+                  <a class="btn-floating btn-small waves-effect waves-light"
+                    href="/groups/<%= invites[i].group %>/<%= invites[i].type %>/decline"
+                  ><i class="material-icons">clear</i></a>
+                  <a class="btn-floating btn-small waves-effect waves-light"
+                    href="/groups/<%= invites[i].group %>/<%= invites[i].type %>/accept"
+                  ><i class="material-icons">check</i></a>
+                </span>
+              </li>
+            <% } %>
+          </ul>
+        </div>
+      <% } %>
       <div class="row">
         <div class="col s6 offset-s3">
           <ul class="tabs">

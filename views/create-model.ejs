@@ -15,6 +15,7 @@
         <!-- TODO A better way to display user email? -->
         <a href="/user" class="brand-logo center"><%= email %></a>
         <ul id="nav-mobile" class="right hide-on-med-and-down">
+          <li><a href="/groups/create"><i class="material-icons">group_add</i></a></li>
           <li class="active"><a href="/models/create"><i class="material-icons">file_upload</i></a></li>
           <li><a href="/user"><i class="material-icons">home</i></a></li>
           <li><a href="/logout"><i class="material-icons">exit_to_app</i></a></li>
@@ -77,6 +78,16 @@
                   <input type="checkbox" name="public"/>
                   <span>Public</span>
                 </label></p>
+
+                <div class="input-field">
+                  <select multiple name="groups">
+                    <option value="" disabled>Groups</option>
+                    <% for(let i=0;i<groups.length;++i){ %>
+                      <option value="<%= groups[i]._id %>"><%= groups[i].name %></option>
+                    <% } %>
+                  </select>
+                  <label>Groups</label>
+                </div>              
               </div>
               <div class="row center-align">
                 <button class="btn-large waves-effect waves-light" type="submit" name="action">Create
@@ -162,5 +173,11 @@
       //console.log(autocompleteTags)
       return autocompleteTags
     }
+
+    // Groups
+    document.addEventListener('DOMContentLoaded', function() {
+      var elems = document.querySelectorAll('select');
+      var instances = M.FormSelect.init(elems);
+    });
   </script>
 </html>

@@ -10,9 +10,12 @@ async function seed(db) {
             models: [],
             views: [],
             offers: [],
+            invites: [],
             memory: 0,
             stars: [],
-            masonry: true
+            masonry: true,
+            ownGroups: [],
+            viewGroups: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "b@b",
@@ -20,9 +23,12 @@ async function seed(db) {
             models: [],
             views: [],
             offers: [],
+            invites: [],
             memory: 0,
             stars: [],
-            masonry: true
+            masonry: true,
+            ownGroups: [],
+            viewGroups: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "c@c",
@@ -30,9 +36,12 @@ async function seed(db) {
             models: [],
             views: [],
             offers: [],
+            invites: [],
             memory: 0,
             stars: [],
-            masonry: true
+            masonry: true,
+            ownGroups: [],
+            viewGroups: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "d@d",
@@ -40,9 +49,12 @@ async function seed(db) {
             models: [],
             views: [],
             offers: [],
+            invites: [],
             memory: 0,
             stars: [],
-            masonry: true
+            masonry: true,
+            ownGroups: [],
+            viewGroups: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "aa@a",
@@ -50,9 +62,12 @@ async function seed(db) {
             models: [],
             views: [],
             offers: [],
+            invites: [],
             memory: 0,
             stars: [],
-            masonry: true
+            masonry: true,
+            ownGroups: [],
+            viewGroups: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "ab@a",
@@ -60,9 +75,12 @@ async function seed(db) {
             models: [],
             views: [],
             offers: [],
+            invites: [],
             memory: 0,
             stars: [],
-            masonry: true
+            masonry: true,
+            ownGroups: [],
+            viewGroups: []
         }).catch((err)=>{}),
         db.collection("users").insertOne({
             email: "ac@a",
@@ -70,9 +88,12 @@ async function seed(db) {
             models: [],
             views: [],
             offers: [],
+            invites: [],
             memory: 0,
             stars: [],
-            masonry: true
+            masonry: true,
+            ownGroups: [],
+            viewGroups: []
         }).catch((err)=>{})
     ])
 }
