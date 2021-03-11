@@ -670,6 +670,9 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
     // Add model to user, increment model size. 
     // MongoDB has validation requiring `memory` be less than some value, 
     // thus if it increments to being over this operation will throw an error.
+
+    var flag = false; // the flag is to be set to true if error happens 
+    //and we need to stop executing the rest of the code
     await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
       {
@@ -681,11 +684,13 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
       res.redirect('/models/create'); // TODO Does this actually end this function?
       // no, this doesn't end anything. 
       // we are inside lambda function which is in another lambda function anyways
-      console.log("test2");
-      return; // no redirect by itself doesn't end the function
-      console.log("end me");
+      // so we cant just return either
+      flag = true;
     });
-    console.log("end me2");
+    if (flag){
+      console.log("user over the limit when creating file");
+      return;
+    }
     // Set group Ids
     const groupArray = Array.isArray(req.body.groups) ? req.body.groups : [req.body.groups];
     const groupIds = groupArray.map(x => new ObjectId(x));
