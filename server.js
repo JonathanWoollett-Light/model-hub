@@ -1021,7 +1021,7 @@ app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
     // not already have it.
     // right, here is where i needa check for memory limit
     var flag = false;
-    const redirect = "/user"
+    
     await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
       {
@@ -1031,7 +1031,7 @@ app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
       }
     ).catch((err)=>{
       // Presume error is result of memory being more than max
-      res.redirect(redirect); // send it somewhere where it makes sense for now
+      res.redirect("/user"); // send it somewhere where it makes sense for now
       // TODO figure out user feedback
       flag = true;
     });
