@@ -1062,11 +1062,11 @@ app.get('/models/:id/own/decline', checkAuthenticated, async (req, res) => {
   const model = await app.locals.database.collection("models").countDocuments(
     {
       _id: modelId,
-      awaiting: { $elemMatch: { type: "view", for: req.user._id}}
+      awaiting: { $elemMatch: { type: "own", for: req.user._id}}
     },
     limit = 1
   );
-
+  
   if (model != 0) {
     await Promise.all([
       // Removes awaiting from model
