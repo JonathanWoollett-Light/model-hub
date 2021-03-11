@@ -697,7 +697,8 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
 
     await Promise.all([
       // Insert model
-      // TODO there seems to be a limit of ~18mb files that the database can upload
+      // TODO there seems to be a limit of ~17.8mb files that the database can serialize and upload
+      // this could also be an issue of me providing with wrong file format, need to look into.
       app.locals.database.collection("models").insertOne(model),
       // Add model to all given groups
       app.locals.database.collection("groups").updateMany(
@@ -1019,6 +1020,8 @@ app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
     // We can use `$push` over `$addToSet` as when an offer is sent it checks they do 
     // not already have it.
     // right, here is where i needa check for memory limit
+    var flag = false;
+    const redirect = "/user"
     await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
       {
@@ -1028,10 +1031,13 @@ app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
       }
     ).catch((err)=>{
       // Presume error is result of memory being more than max
-      res.redirect('/user'); // send it somewhere where it makes sense for now
+      res.redirect(redirect); // send it somewhere where it makes sense for now
       // TODO figure out user feedback
-      return;
+      flag = true;
     });
+    if (flag){
+      return;
+    }
     await Promise.all([
       // Remove awaiting from model, increment owners by 1
       app.locals.database.collection("models").updateOne(
