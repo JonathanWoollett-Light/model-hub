@@ -246,8 +246,11 @@ app.post('/register', checkNotAuthenticated, async (req, res) => {
     models: [],
     views: [],
     offers: [],
+    invites: [],
     memory: 0,
-    stars: []
+    stars: [],
+    ownGroups: [],
+    viewGroups: []
   }).catch((err)=>{
      // Presumes error is result of email not being unique, thus checks logging in
      // TODO This trigger a scary error and uses code duplication, fix that
@@ -619,11 +622,13 @@ app.get('/models/create', checkAuthenticated, async (req, res) => {
 })
 
 // TODO Should this be "/models"
+// TODO remove magic numbers
+// TODO user feedback on fail? rn it just redirects back
 app.post('/models/create', checkAuthenticated, async (req, res) => {
-  console.log("/models/create");
+  console.log("post to /models/create");
 
   const size = req.files.poster.size + req.files.model.size;
-  if (req.files.poster.size < 30*1024) {
+  if (req.files.poster.size < 30*1024) { 
     // console.log(req.files)
     const public = req.body.public=="on";
     
@@ -664,7 +669,10 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
 
     // Add model to user, increment model size. 
     // MongoDB has validation requiring `memory` be less than some value, 
-    //  thus if it increments to being over this operation will throw an error.
+    // thus if it increments to being over this operation will throw an error.
+
+    var flag = false; // the flag is to be set to true if error happens 
+    //and we need to stop executing the rest of the code
     await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
       {
@@ -674,14 +682,23 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
     ).catch((err)=>{
       // Presume error is result of memory being more than max
       res.redirect('/models/create'); // TODO Does this actually end this function?
+      // no, this doesn't end anything. 
+      // we are inside lambda function which is in another lambda function anyways
+      // so we cant just return either
+      flag = true;
     });
-
+    if (flag){
+      console.log("user over the limit when creating file");
+      return;
+    }
     // Set group Ids
     const groupArray = Array.isArray(req.body.groups) ? req.body.groups : [req.body.groups];
     const groupIds = groupArray.map(x => new ObjectId(x));
 
     await Promise.all([
       // Insert model
+      // TODO there seems to be a limit of ~17.8mb files that the database can serialize and upload
+      // this could also be an issue of me providing with wrong file format, need to look into.
       app.locals.database.collection("models").insertOne(model),
       // Add model to all given groups
       app.locals.database.collection("groups").updateMany(
@@ -905,6 +922,7 @@ app.post('/models/:id/version', checkAuthenticated, async (req, res) => {
   res.redirect("/models/" + req.params.id);
 })
 
+// this sends an offer
 app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/shareOwnership");
   const modelId = ObjectId(req.params.id);
@@ -943,6 +961,8 @@ app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
   }
   res.redirect("/models/" + req.params.id);
 })
+
+// this sets up viewing permisions
 app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/share");
   const modelId = ObjectId(req.params.id);
@@ -983,6 +1003,7 @@ app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
 })
 
 // Needs to be `get` so can be called from `<a>`
+// this gives ownership for accepting offer (or seems to)
 app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/own/accept");
   const modelId = ObjectId(req.params.id);
@@ -997,7 +1018,26 @@ app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
 
   if (model.length != 0) {
     // We can use `$push` over `$addToSet` as when an offer is sent it checks they do 
-    //  not already have it.
+    // not already have it.
+    // right, here is where i needa check for memory limit
+    var flag = false;
+    
+    await app.locals.database.collection("users").updateOne(
+      { _id: req.user._id },
+      {
+        $push: { models: modelId },
+        $pull: { offers: { model: modelId } },
+        $inc: { memory: model[0].size }
+      }
+    ).catch((err)=>{
+      // Presume error is result of memory being more than max
+      res.redirect("/user"); // send it somewhere where it makes sense for now
+      // TODO figure out user feedback
+      flag = true;
+    });
+    if (flag){
+      return;
+    }
     await Promise.all([
       // Remove awaiting from model, increment owners by 1
       app.locals.database.collection("models").updateOne(
@@ -1008,15 +1048,7 @@ app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
         }
       ),
       // Remove offer from user, push model, increment user memory
-      app.locals.database.collection("users").updateOne(
-        { _id: req.user._id },
-        {
-          $push: { models: modelId },
-          $pull: { offers: { model: modelId } },
-          $inc: { memory: model[0].size }
-        }
-      ),
-    ]);
+      ]);
   }
 
   res.redirect("/user");
@@ -1030,11 +1062,11 @@ app.get('/models/:id/own/decline', checkAuthenticated, async (req, res) => {
   const model = await app.locals.database.collection("models").countDocuments(
     {
       _id: modelId,
-      awaiting: { $elemMatch: { type: "view", for: req.user._id}}
+      awaiting: { $elemMatch: { type: "own", for: req.user._id}}
     },
     limit = 1
   );
-
+  
   if (model != 0) {
     await Promise.all([
       // Removes awaiting from model
