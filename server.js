@@ -217,13 +217,13 @@ app.get('/user', checkAuthenticated, async (req, res) => {
 app.put('/user/masonry-on', checkAuthenticated, async (req, res) => {
   console.log("/user/masonry-on");
   await app.locals.database.collection("users").updateOne({ _id: req.user._id }, { $set: { masonry: true } });
-  res.status(200);
+  res.sendStatus(200);
   // TODO Use `promise.all` here
 })
 app.put('/user/masonry-off', checkAuthenticated, async (req, res) => {
   console.log("/user/masonry-off");
   await app.locals.database.collection("users").updateOne({ _id: req.user._id }, { $set: { masonry: false } });
-  res.status(200);
+  res.sendStatus(200);
   // TODO Use `promise.all` here
 })
 
@@ -326,7 +326,7 @@ app.get('/groups/:id', checkAuthenticated, async (req, res) => {
   console.log("/groups/:id")
   
   const group = await app.locals.database.collection("groups").findOne({ _id: ObjectId(req.params.id) });
-  if (group==null) res.status(403);
+  if (group==null) res.sendStatus(403);
   else {
     const owns = group.owners.some(val => val.equals(req.user._id));
     const views = group.viewers.some(val => val.equals(req.user._id));
@@ -734,7 +734,7 @@ app.get('/models/:id', async (req, res) => {
   console.log("/models/:id")
   
   const model = await app.locals.database.collection("models").findOne({ _id: ObjectId(req.params.id) });
-  if (model==null) res.status(403)
+  if (model==null) res.sendStatus(403)
   else if (req.isAuthenticated()) {
     const owns = req.user.models.some(val => val.equals(req.params.id));
     const views = req.user.views.some(val => val.equals(req.params.id));
@@ -753,13 +753,13 @@ app.get('/models/:id', async (req, res) => {
     if (model.public || owns || views) {
       res.render("model.ejs", { email: req.user.email, owner: owns, model: model, starred: starred, tags: distinctTags })
     } else {
-      res.status(403);
+      res.sendStatus(403);
     }
   }
   else if(model.public) {
     res.render("model.ejs",{ email: null, owner: false, model: model, starred: false, tags: [] })
   } else { 
-    res.status(403);
+    res.sendStatus(403);
   }
 })
 
@@ -788,16 +788,16 @@ app.put('/models/:id/tags/:tags', checkAuthenticated, async (req, res) => {
     const tags = req.params.tags.split(",");
     if(tags[0] == "") tags = [];
     if(tags.length > 5) {
-      res.status(400)
+      res.sendStatus(400)
     } else {
       await app.locals.database.collection("models").updateOne(
         { _id: ObjectId(req.params.id) },
         { $set: { tags: tags } }
       );
-      res.status(200);
+      res.sendStatus(200);
     }
   } else {
-    res.status(403);
+    res.sendStatus(403);
   }
 })
 app.put('/models/:id/spec/value/:pair', checkAuthenticated, async (req, res) => {
@@ -817,9 +817,9 @@ app.put('/models/:id/spec/value/:pair', checkAuthenticated, async (req, res) => 
       { _id: ObjectId(req.params.id) },
       { $set: set }
     );
-    res.status(200);
+    res.sendStatus(200);
   } else {
-    res.status(403);
+    res.sendStatus(403);
   }
 })
 app.put('/models/:id/spec/key/:pair', checkAuthenticated, async (req, res) => {
@@ -839,9 +839,9 @@ app.put('/models/:id/spec/key/:pair', checkAuthenticated, async (req, res) => {
       { _id: ObjectId(req.params.id) },
       { $rename: rename }
     );
-    res.status(200);
+    res.sendStatus(200);
   } else {
-    res.status(403);
+    res.sendStatus(403);
   }
 })
 
@@ -872,7 +872,7 @@ app.put('/models/:id/star', checkAuthenticated, async (req, res) => {
     _id: ObjectId(req.params.id),
     public: true
   });
-  if (model==null) res.status(403);
+  if (model==null) res.sendStatus(403);
   else {
     const update = await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
@@ -885,7 +885,7 @@ app.put('/models/:id/star', checkAuthenticated, async (req, res) => {
         { $inc: { stars: 1 }, $push: { followers: req.user._id } }
       );
     }
-    res.status(200);
+    res.sendStatus(200);
   }
 })
 // un-like
@@ -897,7 +897,7 @@ app.put('/models/:id/unstar', checkAuthenticated, async (req, res) => {
     _id: ObjectId(req.params.id),
     public: true
   });
-  if (model==null) res.status(403);
+  if (model==null) res.sendStatus(403);
   else {
     const update = await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
@@ -910,7 +910,7 @@ app.put('/models/:id/unstar', checkAuthenticated, async (req, res) => {
         { $inc: { stars: -1 }, $pull: { followers: req.user._id } }
       );
     }
-    res.status(200);
+    res.sendStatus(200);
   }
 })
 
