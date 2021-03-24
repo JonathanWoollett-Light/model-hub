@@ -845,6 +845,23 @@ app.put('/models/:id/spec/key/:pair', checkAuthenticated, async (req, res) => {
   }
 })
 
+// Adding report for model
+app.post('/models/:id/report', async (req, res) => {
+  console.log("/models/:id/report");
+  let id = ObjectId(req.params.id);
+  // Check model exists
+  const model = await app.locals.database.collection("models").findOne({ 
+    _id: id
+  });
+  if (model==null) res.sendStatus(403);
+  else {
+    await app.locals.database.collection("reports").insertOne({ model: id }).catch((err) => {
+      // `model` is unique field
+      // Presume error result of given model not not being unique
+    });
+    res.sendStatus(200);
+  }
+});
 
 // like
 app.put('/models/:id/star', checkAuthenticated, async (req, res) => {

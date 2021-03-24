@@ -42,6 +42,7 @@
             <div class="chip"><a href="/landing/<%= model.tags[i] %>"><%= model.tags[i] %></a></div>
           <% } %>
         <% } %>
+        <a class="btn-floating btn-small waves-effect waves-light" onclick="M.toast({html: 'Reported'})" id="report"><i class="material-icons">report</i></a>
         <p><%= model.desc %></p>
       </div>
       <!-- TODO Figure out how to best render versions -->
@@ -227,8 +228,25 @@
         }
       });
     });
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // When a user presses the report button this runs
+      const report = document.getElementById("report");
+      report.addEventListener("click",(doc) => {
+        let request = new XMLHttpRequest();
+        console.log("/models/<%= model._id %>/report")
+        request.open("post","/models/<%= model._id %>/report",true);
+        request.onload = function() {
+          if(this.status == 200) {
+            console.log("reported");
+          }
+        }
+        request.send();
+      });
+    });
     
-    // TODO This should be done using the html `onclick` property rather than like this
+
+    // When a user presses the like button this runs
     const starred = document.getElementById("starred");
     if (starred != null) {
       starred.addEventListener("click",(doc) => {
