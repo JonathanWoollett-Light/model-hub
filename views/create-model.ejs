@@ -12,7 +12,6 @@
           <li><a href="/">model-hub</a></li>
           <li><a href="/about"><i class="material-icons">description</i></a></li>
         </ul>
-        <!-- TODO A better way to display user email? -->
         <a href="/user" class="brand-logo center"><%= email %></a>
         <ul id="nav-mobile" class="right hide-on-med-and-down">
           <li><a href="/groups/create"><i class="material-icons">group_add</i></a></li>
@@ -27,7 +26,6 @@
         <h2 class="center-align">New model</h2>
       </div>
       <div class="row">
-        <!-- class="z-depth-1" -->
         <form style="padding:10px;" action="/models/create" method="post" enctype="multipart/form-data">
           <div class="row">
             <div class="col s6">
@@ -170,7 +168,6 @@
       for(i=0;i<tags.length;i++) {
         autocompleteTags[tags[i]] = null;
       }
-      //console.log(autocompleteTags)
       return autocompleteTags
     }
 

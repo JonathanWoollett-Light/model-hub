@@ -286,7 +286,7 @@ function checkNotAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {
     return res.redirect('/user')
   }
-  next() // TODO Should this be a `return`?
+  next()
 }
 
 // Group roots
@@ -576,56 +576,60 @@ app.get("/groups/:id/view/decline", checkAuthenticated, async (req, res) => {
 
 app.get('/models/search/:info', async (req, res) => {
   console.log("/models/search/:info")
-  //console.log(req.params.tags);
 
   const indx = req.params.info.indexOf(":");
   const title = req.params.info.substr(0,indx);
   const tags = req.params.info.substr(indx+1).split(",");
-  if(tags[0] == "") tags = []; // TODO Is there a better way to deal with this?
+  // Splitting "" by `","` leads to [""] when it should instead be [], this 
+  //  handles this edge case.
+  if(tags[0] == "") tags = []; 
 
+  // Get models where:
   const models = await app.locals.database.collection("models").find({
-    public: true,
-    title: { $regex: ".*"+title+".*" },
-    tags: { $elemMatch: { $in: tags } } // Where any tag in the model matches any tag in the given tags
+    public: true, // The model is public
+    title: { $regex: ".*"+title+".*" }, // The title contains the given title string
+    tags: { $elemMatch: { $in: tags } } // Any tag in the model matches any tag in the given tags
   }).project({
     title: true,
     "poster.data": true,
     tags: true
   }).limit(20).sort({ stars: -1 }).toArray();
 
-  //console.log(models);
+
   res.json(models);
 })
 
 app.get('/models/create', checkAuthenticated, async (req, res) => {
   console.log("/models/create");
 
+  // For autocomplete get:
   Promise.all([
+    // Tags on the top 100 models
     app.locals.database.collection("models").find(
       { public: true },
     ).project({
       _id: false,
       tags: true
     }).limit(100).sort({ stars: -1 }).toArray(),
-
+    // All groups in which the user is an owner
     app.locals.database.collection("groups").find(
       { _id: { $in: req.user.ownGroups } }
     ).project({
       name: true
     }).toArray()
     
-  ]).then((data)=>{
+  ]).then((data) => {
+    // Reduce tags from popular models to list of distinct tags from popular models.
     let distinctTags = [...new Set(data[0].flatMap(x=>x.tags))];
 
     res.render('create-model.ejs', { email: req.user.email, tags: distinctTags, groups: data[1] })
   });
 })
 
-// TODO Should this be "/models"
-// TODO remove magic numbers
-// TODO user feedback on fail? rn it just redirects back
+// TODO Can this simply be "/models"?
+// TODO Remove magic number for allowed poster size.
 app.post('/models/create', checkAuthenticated, async (req, res) => {
-  console.log("post to /models/create");
+  console.log("/models/create");
 
   const size = req.files.poster.size + req.files.model.size;
   if (req.files.poster.size < 30*1024) { 
@@ -638,7 +642,7 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
 
     // Construct specification map
     let spec = {}
-    for(let i=0;req.body["key"+i]!=null;i++){
+    for(let i = 0; req.body["key"+i] !=  null; i++){
       if(req.body["key"+i]=="") continue;
       spec[req.body["key"+i]] = req.body["value"+i];
     }
@@ -671,41 +675,44 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
     // MongoDB has validation requiring `memory` be less than some value, 
     // thus if it increments to being over this operation will throw an error.
 
-    var flag = false; // the flag is to be set to true if error happens 
-    //and we need to stop executing the rest of the code
+    // Early return flag for when a user has exceeded their allowed storage space
+    var flag = false;
+
     await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
       {
         $push: { models: modelId },
         $inc: { memory: size }
       }
-    ).catch((err)=>{
-      // Presume error is result of memory being more than max
-      res.redirect('/models/create'); // TODO Does this actually end this function?
-      // no, this doesn't end anything. 
-      // we are inside lambda function which is in another lambda function anyways
-      // so we cant just return either
-      flag = true;
+    ).catch((err) => {
+      // If the update causes the total storage size used to increase above a set limit,
+      //  it will cause the operation to error, we presume an error is a result of this.
+      // In this case we wish to return early without carrying out any updates.
+      res.redirect("/models/create"); // Redirect to user homepage
+      flag = true; // Set early return flag
     });
-    if (flag){
-      console.log("user over the limit when creating file");
-      return;
-    }
+
+    // If the user update errors, we presume the error being a result of 
+    //  exceeding the memory size and thus return early without giving the 
+    //  user ownership of the model.
+    if (flag) return;
+
     // Set group Ids
     const groupArray = Array.isArray(req.body.groups) ? req.body.groups : [req.body.groups];
     const groupIds = groupArray.map(x => new ObjectId(x));
 
     await Promise.all([
       // Insert model
-      // TODO there seems to be a limit of ~17.8mb files that the database can serialize and upload
-      // this could also be an issue of me providing with wrong file format, need to look into.
+      // TODO Possible limit of ~17.8mb for files that the database can serialize and upload,
+      //  needs further investigation.
       app.locals.database.collection("models").insertOne(model),
       // Add model to all given groups
       app.locals.database.collection("groups").updateMany(
         { _id: { $in: groupIds } },
         { $push: { models: modelId } }
       ),
-      // Excluding this user: Add model ownership to all owners of given groups, increment all owners of given groups by model size
+      // Excluding this user: Add model ownership to all owners of given groups, increment all owners 
+      //  storage space of given groups by model size.
       app.locals.database.collection("users").updateMany(
         { 
           ownGroups: { $in: groupIds }, 
@@ -716,7 +723,7 @@ app.post('/models/create', checkAuthenticated, async (req, res) => {
           $inc: { memory: size }
         },
       ),
-      // Add model viewership to all viewer of given groups
+      // Add model viewership to all viewers of given groups.
       app.locals.database.collection("users").updateMany(
         { viewGroups: { $in: groupIds } },
         { $addToSet: { views: modelId } }
@@ -939,7 +946,7 @@ app.post('/models/:id/version', checkAuthenticated, async (req, res) => {
   res.redirect("/models/" + req.params.id);
 })
 
-// this sends an offer
+// Establishes an ownership offer
 app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/shareOwnership");
   const modelId = ObjectId(req.params.id);
@@ -978,8 +985,7 @@ app.put('/models/:id/shareOwnership', checkAuthenticated, async (req, res) => {
   }
   res.redirect("/models/" + req.params.id);
 })
-
-// this sets up viewing permisions
+// Establishes a viewership offer
 app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/share");
   const modelId = ObjectId(req.params.id);
@@ -993,6 +999,7 @@ app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
     limit = 1
   );
 
+  // If user exists
   if (owner != 0) {
     // Check offered user exists
     const user = await app.locals.database.collection("users").findOne({ email: req.body.email });
@@ -1018,9 +1025,7 @@ app.put('/models/:id/share', checkAuthenticated, async (req, res) => {
   }
   res.redirect("/models/" + req.params.id);
 })
-
-// Needs to be `get` so can be called from `<a>`
-// this gives ownership for accepting offer (or seems to)
+// Important note: This is a `get` route so it can be easily directed to from an `<a>` element.
 app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/own/accept");
   const modelId = ObjectId(req.params.id);
@@ -1034,11 +1039,13 @@ app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
   }).toArray();
 
   if (model.length != 0) {
-    // We can use `$push` over `$addToSet` as when an offer is sent it checks they do 
-    // not already have it.
-    // right, here is where i needa check for memory limit
+    // Early return flag for when a user has exceeded their allowed storage space
     var flag = false;
     
+    // Find authenticated user and attempt to update their:
+    // - owned models
+    // - model ownership offers
+    // - total storage size used
     await app.locals.database.collection("users").updateOne(
       { _id: req.user._id },
       {
@@ -1046,21 +1053,31 @@ app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
         $pull: { offers: { model: modelId } },
         $inc: { memory: model[0].size }
       }
-    ).catch((err)=>{
-      // Presume error is result of memory being more than max
-      res.redirect("/user"); // send it somewhere where it makes sense for now
-      // TODO figure out user feedback
-      flag = true;
+    ).catch((err) => {
+      // If the update causes the total storage size used to increase above a set limit,
+      //  it will cause the operation to error, we presume an error is a result of this.
+      // In this case we wish to return early without carrying out any updates.
+      res.redirect("/user"); // Redirect to user homepage
+      flag = true; // Set early return flag
     });
-    if (flag){
-      return;
-    }
+
+    // If the user update errors, we presume the error being a result of 
+    //  exceeding the memory size and thus return early without giving the 
+    //  user ownership of the model.
+    if (flag) return;
+    
+    // Carry out model object updates
     await Promise.all([
       // Remove awaiting from model, increment owners by 1
       app.locals.database.collection("models").updateOne(
         { _id: modelId },
         {
+          // As models deleted when they have no owners, when a new owner is created
+          //  we must increment the number of owners of a model.
           $inc: { owners: 1},
+          // As we store the offers a model is awaiting within the model object so we can 
+          //  efficiently clear all offers when a model is deleted.
+          // We must clear awaiting offers from a model when they are accepted.
           $pull: { awaiting: { type: "own", for: req.user._id} }
         }
       ),
@@ -1070,7 +1087,7 @@ app.get('/models/:id/own/accept', checkAuthenticated, async (req, res) => {
 
   res.redirect("/user");
 })
-// Needs to be `get` so can be called from `<a>`
+// Important note: This is a `get` route so it can be easily directed to from an `<a>` element.
 app.get('/models/:id/own/decline', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/own/decline");
   const modelId = ObjectId(req.params.id);
@@ -1084,14 +1101,15 @@ app.get('/models/:id/own/decline', checkAuthenticated, async (req, res) => {
     limit = 1
   );
   
+  // If model exists
   if (model != 0) {
     await Promise.all([
-      // Removes awaiting from model
+      // Removes awaiting offer from model
       app.locals.database.collection("models").updateOne(
         { _id: modelId },
         { $pull: { awaiting: { type: "own", for: req.user._id } } }
       ),
-      // Removes offer from user
+      // Removes awaiting offer from user
       app.locals.database.collection("users").updateOne(
         { _id: req.user._id },
         { $pull: { offers: { model: modelId } } }
@@ -1101,7 +1119,7 @@ app.get('/models/:id/own/decline', checkAuthenticated, async (req, res) => {
   
   res.redirect("/user");
 })
-// Needs to be `get` so can be called from `<a>`
+// Important note: This is a `get` route so it can be easily directed to from an `<a>` element.
 app.get('/models/:id/view/accept', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/view/accept");
   const modelId = ObjectId(req.params.id);
@@ -1114,7 +1132,7 @@ app.get('/models/:id/view/accept', checkAuthenticated, async (req, res) => {
     },
     limit = 1
   );
-
+  // If model exists
   if (model != 0) {
     // We can use `$push` over `$addToSet` as when an offer is sent it checks they do 
     //  not already have it.
@@ -1137,7 +1155,7 @@ app.get('/models/:id/view/accept', checkAuthenticated, async (req, res) => {
 
   res.redirect("/user");
 })
-// Needs to be `get` so can be called from `<a>`
+// Important note: This is a `get` route so it can be easily directed to from an `<a>` element.
 app.get('/models/:id/view/decline', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/view/decline");
   const modelId = ObjectId(req.params.id);
@@ -1150,7 +1168,7 @@ app.get('/models/:id/view/decline', checkAuthenticated, async (req, res) => {
     },
     limit = 1
   );
-
+  // If model exists
   if (model != 0) {
     await Promise.all([
       // Removes awaiting from model
@@ -1169,7 +1187,6 @@ app.get('/models/:id/view/decline', checkAuthenticated, async (req, res) => {
   res.redirect("/user");
 })
 
-// TODO Delete all hanging offer if model gets deleted
 app.delete('/models/:id/disown', checkAuthenticated, async (req, res) => {
   console.log("/models/:id/disown");
   const modelId = ObjectId(req.params.id);
