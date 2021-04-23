@@ -584,7 +584,7 @@ app.get('/models/search/:info', async (req, res) => {
   //  handles this edge case.
   if(tags[0] == "") tags = []; 
 
-  // Get models where:
+  // Get top 20 most starred models where:
   const models = await app.locals.database.collection("models").find({
     public: true, // The model is public
     title: { $regex: ".*"+title+".*" }, // The title contains the given title string
